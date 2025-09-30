@@ -1,0 +1,6 @@
+masks: {T_mask: data/planck_common_tmask.fits, phi_mask: data/planck_lensing_mask.fits}
+ells: {T: [2,64], phi: [8,2048], bins: {lmin: 8, lmax: 100, nlb: 10}}
+frequency: {T: SMICA}
+splits: {held_out: HM_B, use: [HM_A]}
+multiplicity: {method: FDR, q: 0.1, K: 1}
+context_sign_prediction: +1

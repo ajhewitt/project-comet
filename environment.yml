@@ -1,0 +1,12 @@
+name: p2comm
+channels: [conda-forge]
+dependencies:
+  - python=3.11
+  - numpy
+  - scipy
+  - astropy
+  - healpy
+  - pymaster
+  - pyyaml
+  - tqdm
+  - matplotlib

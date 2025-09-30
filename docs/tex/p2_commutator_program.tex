@@ -1,0 +1,181 @@
+
+\documentclass[11pt]{article}
+\usepackage{amsmath, amssymb, geometry}
+\usepackage{hyperref}
+\geometry{margin=1in}
+
+\title{Program for Testing Lensing--ISW Commutator (P2)}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{Goal}
+Test whether the order of operations in CMB lensing and ISW reconstruction commute. Define
+\begin{align}
+\Delta_{\rm comm} \equiv 
+\big[\widehat{\mathcal S}_{\phi \to T_{\rm ISW}}\big] - 
+\big[\widehat{\mathcal S}_{T_{\rm ISW} \to \phi}\big],
+\end{align}
+which should vanish under $\Lambda$CDM with context-free priors, but can deviate proportionally to $\lambda$ in context-dependent frameworks.
+
+\section*{0. Pre-registration}
+\begin{itemize}
+\item Masks: Planck PR4 common mask for $T$, lensing mask for $\hat{\phi}$.
+\item Multipoles: $T$ in $2 \leq \ell \leq 64$, $\phi$ in $8 \leq L \leq 2048$.
+\item Frequency: SMICA as primary, WMAP ILC as cross-check.
+\item Estimator: Hu--Okamoto QE for $\phi$, pseudo-$C_\ell$ with MASTER.
+\item Context template: ecliptic-aligned low-$\ell$ basis, pre-registered and fixed.
+\item Output: single $\Delta_{\rm comm}$ and context-projected $S_\gamma$ statistic.
+\end{itemize}
+
+\section*{1. Data Products}
+\begin{itemize}
+\item CMB temperature maps: Planck PR4 SMICA, WMAP9 ILC.
+\item Lensing reconstructions: Planck PR4 $\hat{\phi}$ maps and QE on splits.
+\item Ancillary: exposure/scan maps, zodiacal templates, beam models.
+\end{itemize}
+
+\section*{2. Two Orderings}
+\subsection*{A$\to$B (Lensing First)}
+\begin{enumerate}
+\item Reconstruct $\hat{\phi}$ from small-scale $T$ ($500 \leq \ell \leq 2048$).
+\item Filter large-scale $T$ for ISW proxy.
+\item Compute $C^{A \to B}_L = \langle \hat{\phi}, T_{\rm ISW}\rangle$.
+\end{enumerate}
+
+\subsection*{B$\to$A (ISW First)}
+\begin{enumerate}
+\item Project large-scale $T$ to ISW proxy.
+\item Reconstruct $\hat{\phi}$ from remaining small-scale $T$.
+\item Compute $C^{B \to A}_L$ identically.
+\end{enumerate}
+
+\subsection*{Commutator Statistic}
+\begin{align}
+\Delta_{\rm comm} = \sum_{L \in \mathcal{B}} w_L \big(C^{A \to B}_L - C^{B \to A}_L\big).
+\end{align}
+
+\section*{3. Context Coupling Overlay}
+\begin{align}
+S_\gamma = \frac{\sum_{L} w_L (C^{A \to B}_L - C^{B \to A}_L)\,\Pi_L(c)}{\sqrt{\mathrm{Var}}}.
+\end{align}
+$S_\gamma$ should vanish in $\Lambda$CDM, nonzero under context coupling.
+
+\section*{4. Splits \& Replication}
+\begin{itemize}
+\item Planck half-mission A/B, detset splits, 143 vs 217 GHz.
+\item WMAP ILC with Planck QE hybrid test.
+\item Hold out one split (HM-B) as validation.
+\end{itemize}
+
+\section*{5. Simulation Calibration}
+\begin{itemize}
+\item Null suite: 1000 $\Lambda$CDM skies with beams, masks, QE, MASTER.
+\item Injection suite: add small rank-1 context perturbations to test $\lambda$ response.
+\item Deliver expected $\sigma(\Delta_{\rm comm})$, false-positive rate, recovery curves.
+\end{itemize}
+
+\section*{6. Systematics Triage}
+\begin{itemize}
+\item Beam/FSL templates toggled.
+\item Zodiacal residuals included/excluded.
+\item Two fixed masks (baseline, conservative).
+\item Optional curl-mode estimator check.
+\end{itemize}
+
+\section*{7. Statistical Reporting}
+\begin{itemize}
+\item Primary outcomes: $Z(\Delta_{\rm comm})$, $Z(S_\gamma)$.
+\item Multiplicity: one $S_\gamma$; FDR $q=0.1$ if extra templates tested.
+\item Replication: consistent sign and $Z>2$ across splits; held-out must pass.
+\end{itemize}
+
+\section*{8. Expected Sensitivity}
+Planck-class noise with $f_{\rm sky}\sim 0.7$ gives $\sigma(\Delta_{\rm comm}) \sim 10^{-3}$ fractional effect. Expect $Z \sim 1$--2 per split, $Z \sim 2$--3 combined. A null constrains $\lambda$ to $<10^{-3}$ at 95\% CL.
+
+\section*{9. Minimal Stack}
+\begin{itemize}
+\item HEALPix/Healpy, Planck QE, MASTER, simulation suite.
+\end{itemize}
+
+\section*{10. Stop-loss Rules}
+\begin{itemize}
+\item If variance $>30$\% worse than forecast, publish null.
+\item If split signs inconsistent, declare null.
+\item If held-out fails, stop and publish bounds.
+\end{itemize}
+
+\section*{11. Paper Skeleton}
+\begin{enumerate}
+\item Introduction.
+\item Data \& masks.
+\item Methods: orderings, commutator, context templates.
+\item Simulations.
+\item Results.
+\item Conclusion: detection or bound.
+\end{enumerate}
+
+\section*{Related Work}
+
+Cross-correlations between CMB temperature anisotropies and the CMB lensing potential have been studied extensively as probes of the integrated Sachs–Wolfe (ISW) effect and structure growth. The \textit{Planck} Collaboration reported detections of the ISW--lensing bispectrum at $\sim 2.5\sigma$ significance \cite{planck2015isw}, and subsequent analyses have incorporated the $T \times \phi$ cross-spectrum into joint cosmological likelihoods \cite{carron2022iswlensing}. Ground-based experiments (ACT, SPT) have also measured related cross-correlations with galaxy clustering and weak lensing surveys, producing competitive cosmological constraints and carrying out standard null tests such as rotated maps, curl-mode estimators, and split-half consistency checks \cite{hand2015act,shaikh2024act,kim2024actdesi}.
+
+These works establish the ISW--lensing correlation as a robust observable, but they treat the analysis as a single well-defined pipeline. Null tests are framed in terms of instrumental systematics or statistical fluctuations, rather than as algebraic consistency relations between different orderings of the analysis. Similarly, recent applications to modified gravity \cite{chudaykin2025iswmg} and superstructure stacking \cite{hang2021superstructures} extend the cosmological parameter space, but do not interrogate the invariance of the inference pipeline itself.
+
+By contrast, the present work introduces an explicit \emph{commutator test}, comparing two orderings of the ISW--lensing cross-correlation (lensing-first versus ISW-first) and taking their difference as a diagnostic statistic. This framing isolates a class of potential biases that would otherwise remain hidden within conventional null tests. In addition, we project the commutator onto pre-registered context templates aligned with survey scanning geometry, providing a principled test of context sensitivity in cosmological inference. To our knowledge, this combination of algebraic order testing and context projection has not been previously implemented in the CMB analysis literature.
+
+\section*{References}
+\begin{thebibliography}{99}
+
+\bibitem{planck2015isw}
+Planck Collaboration.
+Planck 2015 results. XXI. The integrated Sachs--Wolfe effect.
+\textit{Astronomy \& Astrophysics} \textbf{594} (2016) A21.
+doi:\href{https://doi.org/10.1051/0004-6361/201525831}{10.1051/0004-6361/201525831}.
+Available at \href{https://arxiv.org/abs/1502.01595}{arXiv:1502.01595}.
+
+\bibitem{carron2022iswlensing}
+Carron, J., Lewis, A., \& Fabbian, G.
+The Planck PR4 CMB lensing likelihood and the ISW effect.
+\textit{MNRAS} \textbf{514} (2022) 2010--2024.
+doi:\href{https://doi.org/10.1093/mnras/stac1330}{10.1093/mnras/stac1330}.
+Available at \href{https://arxiv.org/abs/2209.07395}{arXiv:2209.07395}.
+
+\bibitem{hand2015act}
+Hand, N., et al.
+First measurement of the cross-correlation of CMB lensing and galaxy lensing.
+\textit{Phys. Rev. D} \textbf{91} (2015) 062001.
+doi:\href{https://doi.org/10.1103/PhysRevD.91.062001}{10.1103/PhysRevD.91.062001}.
+Available at \href{https://arxiv.org/abs/1311.6200}{arXiv:1311.6200}.
+
+\bibitem{shaikh2024act}
+Shaikh, S., et al.
+Cosmology from cross-correlation of ACT-DR4 CMB lensing with large-scale structure.
+\textit{MNRAS} \textbf{528} (2024) 2112--2135.
+doi:\href{https://doi.org/10.1093/mnras/stae118}{10.1093/mnras/stae118}.
+Available at \href{https://arxiv.org/abs/2306.01063}{arXiv:2306.01063}.
+
+\bibitem{kim2024actdesi}
+Kim, J., et al.
+ACT DR6 and DESI: structure formation over cosmic time with CMB lensing and luminous red galaxies.
+\textit{JCAP} \textbf{02} (2024) 022.
+doi:\href{https://doi.org/10.1088/1475-7516/2024/02/022}{10.1088/1475-7516/2024/02/022}.
+Available at \href{https://arxiv.org/abs/2306.12344}{arXiv:2306.12344}.
+
+\bibitem{chudaykin2025iswmg}
+Chudaykin, A., Kunz, M., \& Carron, J.
+Constraints on Modified Gravity from the ISW--lensing cross-correlation in Planck PR4.
+\textit{arXiv preprint} (2025).
+Available at \href{https://arxiv.org/abs/2503.09893}{arXiv:2503.09893}.
+
+\bibitem{hang2021superstructures}
+Hang, Q., et al.
+Stacked CMB lensing and ISW signals around superstructures.
+\textit{MNRAS} \textbf{507} (2021) 510--523.
+doi:\href{https://doi.org/10.1093/mnras/stab2111}{10.1093/mnras/stab2111}.
+Available at \href{https://arxiv.org/abs/2105.09902}{arXiv:2105.09902}.
+
+\end{thebibliography}
+
+\end{document}

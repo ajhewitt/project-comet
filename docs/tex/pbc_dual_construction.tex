@@ -1,0 +1,126 @@
+
+% pbc_dual_construction_v3.tex
+% Parochial by Construction: Dual TE/CE Framework with Explicit Math
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,amsthm}
+\newtheorem{theorem}{Theorem}
+\usepackage{bm}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\geometry{margin=1in}
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+
+\title{Parochial by Construction:\\
+Dual Constructions for Cosmological Inference and Their Diagnostics}
+\author{Alastair Hewitt (draft)}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We develop a dual-construction framework for cosmological inference. \emph{Temporal Evolution} (TE) treats the cosmos as a family of complete models indexed by age; \emph{Causal Evolution} (CE) treats each observation as defining a causal completion with observer-indexed priors. We formalize CE as a context-penalized Gaussian prior, prove well-posedness, and derive closed-form shifts relative to TE in a rank-1 toy model. We define structural-zero diagnostics, give sensitivity estimates for six predictions accessible to present/future data, and outline simulation and multiple-testing protocols. The framework is falsifiable and useful whether the outcome is a null bound or a small, reproducible coupling.
+\end{abstract}
+
+\tableofcontents
+
+\section{Conceptual Core}
+\paragraph{Duality.} TE and CE are non-reducible constructions. TE provides a parametrized family $U_{\rm TE}(\tau)$; CE provides $U_{\rm CE}(O)$ for observation $O$ on worldline $\gamma$, with context encoded by templates and penalties. Local microphysics is shared; global reconstructions may differ.
+
+\section{Formal Framework}
+Let $a\in\mathbb R^n$ be primordial mode coefficients, $d=Ta+n$ with transfer $T$ and noise $n\sim\mathcal N(0,N)$. A baseline prior is $a\sim\mathcal N(0,C_\tau)$.
+
+\subsection{TE posterior}
+\begin{equation}
+\Sigma_{\rm TE}=(T^\top N^{-1}T+C_\tau^{-1})^{-1},\qquad
+\mu_{\rm TE}=\Sigma_{\rm TE}T^\top N^{-1}d.
+\end{equation}
+
+\subsection{CE prior and posterior}
+Let $P_{\rm ctx}\succeq 0$ be the context projector (from Section \ref{sec:templates}). Define
+\begin{equation}
+\Pi_\gamma(a)\propto \exp\!\Big[-\tfrac12 a^\top (C_\tau^{-1}+\lambda_\gamma P_{\rm ctx}) a\Big].
+\end{equation}
+Then
+\begin{equation}
+\Sigma_{\rm CE}=(T^\top N^{-1}T+C_\tau^{-1}+\lambda_\gamma P_{\rm ctx})^{-1},\qquad
+\mu_{\rm CE}=\Sigma_{\rm CE}T^\top N^{-1}d.
+\end{equation}
+
+\subsection{Well-posedness}
+\begin{theorem}[Existence/Uniqueness]
+If $N\succ 0$, $C_\tau\succ 0$, $P_{\rm ctx}\succeq 0$, and $\lambda_\gamma\ge 0$, the CE posterior exists and is unique up to standard gauge (e.g., monopole).
+\end{theorem}
+\begin{proof}
+The posterior precision matrix $T^\top N^{-1}T+C_\tau^{-1}+\lambda_\gamma P_{\rm ctx}$ is symmetric positive definite. Hence the Gaussian posterior is well-defined and unique.
+\end{proof}
+
+\section{Toy Model: Rank-1 Context Prior (Explicit)}
+\label{sec:toy}
+Let $P_{\rm ctx}=cc^\top/\|c\|^2$ with $c\neq 0$. Using Woodbury for a rank-1 update,
+\begin{align}
+\Sigma_{\rm CE}&=\Sigma_{\rm TE}-\frac{\lambda_\gamma\,\Sigma_{\rm TE} c c^\top \Sigma_{\rm TE}}{1+\lambda_\gamma\, c^\top \Sigma_{\rm TE} c},\\
+\mu_{\rm CE}-\mu_{\rm TE}&=(\Sigma_{\rm CE}-\Sigma_{\rm TE})T^\top N^{-1}d
+= \lambda_\gamma\,\frac{(\mu_{\rm TE}^\top c)}{1+\lambda_\gamma\, c^\top \Sigma_{\rm TE} c}\,\Sigma_{\rm TE}c.
+\end{align}
+Let $u=W\mu$ be an alignment statistic (e.g., low-$\ell$ projection). Then
+\begin{equation}
+\Delta u \equiv u_{\rm CE}-u_{\rm TE}
+= \lambda_\gamma\,\frac{(\mu_{\rm TE}^\top c)}{1+\lambda_\gamma\, c^\top \Sigma_{\rm TE} c}\, W\Sigma_{\rm TE}c.
+\end{equation}
+Thus CE departs from TE only along $c$, with amplitude $\mathcal O(\lambda_\gamma)$.
+
+\section{Information-Theoretic Derivation of the Penalty}
+\label{sec:it}
+Let $p_0(a)=\mathcal N(0,C_\tau)$ and $T_{\rm ctx}$ extract context features $z=T_{\rm ctx}a$. Consider
+\begin{equation}
+\min_{p}\ \mathrm{KL}(p\,\|\,p_0)+\lambda_\gamma\,\mathbb E_p\|T_{\rm ctx}a\|_2^2.
+\end{equation}
+The solution in the Gaussian family is $p(a)=\mathcal N(0,\tilde C)$ with precision
+\begin{equation}
+\tilde C^{-1}=C_\tau^{-1}+\lambda_\gamma\,T_{\rm ctx}^\top T_{\rm ctx},
+\end{equation}
+i.e., a quadratic penalty in the context subspace. For rank-1 $T_{\rm ctx}$ we recover $P_{\rm ctx}$. A parallel decision-theoretic derivation obtains the same form by minimizing worst-case quadratic loss under context mis-specification.
+
+\section{Context Template Construction}
+\label{sec:templates}
+Given exposure maps $E(\hat n)$, scan harmonics, zodiacal templates $Z(\hat n)$, and masks:
+\begin{enumerate}[nosep]
+\item Build a feature matrix from the first few ecliptic-aligned spherical harmonics of $E$ and $Z$.
+\item Orthogonalize against known systematics (beam asymmetries, far sidelobes, Galactic residuals).
+\item Normalize columns to unit variance; set $T_{\rm ctx}$ as the resulting basis.
+\item For a minimalist test, take the leading mode $c$ and set $P_{\rm ctx}=cc^\top/\|c\|^2$.
+\end{enumerate}
+
+\section{Diagnostics and Predictions with Sensitivity}
+\begin{enumerate}[label=\textbf{P\arabic*},leftmargin=*]
+\item \textbf{Polarization phase-locking (low-$\ell$).} Nonzero correlation between TE/EE phases and $C_\gamma$ after cleaning. Sensitivity: Planck $\sim 10^{-2}$, LiteBIRD $\sim 10^{-3}$.
+\item \textbf{Lensing--ISW commutator.} Order non-commutativity $\Delta_{\rm comm}^{\phi\times T}$ is zero in $\Lambda$CDM, $\mathcal O(\lambda_\gamma)$ in CE. Sensitivity: CMB-S4 $\sim 10^{-3}$ of ISW amplitude.
+\item \textbf{Off-ecliptic sign flip.} A tilted scan should flip the sign of $S_\gamma$ after the same orthogonalization. Binary outcome; not cosmic-variance limited.
+\item \textbf{Parameter-path sensitivity.} Context derivatives $G_\gamma^{(\tau)}\neq 0$ while $G_\gamma^{(\Omega_b h^2)}=0$. Next-gen polarization can test $\mathcal O(10^{-3})$ shifts.
+\item \textbf{Galaxy 2-point anisotropy.} Tiny quadrupolar leakage aligned with $C_\gamma$ in ultra-large scales; DESI+Euclid noise $\sim 2\times 10^{-3}$.
+\item \textbf{JWST field variance.} Extra $1$–$2\%$ aligned variance in high-$z$ counts across fields; detectable with $\mathcal O(10)$ deep fields.
+\end{enumerate}
+
+\section{Implications for $H_0$ Pathways}
+Context coupling alters TE-anchored inferences via low-$\ell$ anchoring and $\theta_*$ response, nudging CMB-only $\widehat{H_0}$ by
+\begin{equation}
+\Delta H_0^{\rm (TE)}\approx \Big(\partial H_0/\partial \theta_*\Big)\,\lambda_\gamma\,\frac{(\mu_{\rm TE}^\top c)}{1+\lambda_\gamma\, c^\top \Sigma_{\rm TE} c}\, (L\Sigma_{\rm TE}c),
+\end{equation}
+with $L$ the linear response of $\theta_*$ to primordial modes. CE-invariant probes (distance ladder, BBN) should remain unchanged to first order.
+
+\section{Simulation and Multiple-Testing Protocol}
+\paragraph{Null.} $\Lambda$CDM skies + beams + noise + zodiacal + masks; run full pipeline to each statistic.  
+\paragraph{Injection.} Add known $\lambda_{\rm true}$ along $P_{\rm ctx}$; verify recovery curves and false-positive rate.  
+\paragraph{Multiplicity.} Pre-register a single template family; apply FDR if scanning $K$ nearby modes; hold out a validation split.
+
+\section{Conclusion}
+The dual-construction framework yields concrete, low-variance diagnostics for context sensitivity with explicit, pre-registrable predictions. Nulls certify robustness; positives quantify a single coupling $\lambda_\gamma$. Either outcome is scientifically useful.
+
+\end{document}

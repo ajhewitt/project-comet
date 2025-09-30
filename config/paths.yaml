@@ -1,0 +1,7 @@
+T_map: data/SMICA_PR4_T.fits
+T_mask: data/planck_common_tmask.fits
+phi_map: data/planck_pr4_phi.fits
+phi_mask: data/planck_lensing_mask.fits
+exposure_map: data/planck_exposure.fits
+scan_map: data/planck_scan.fits
+zodiacal_template: data/zodi_template.fits

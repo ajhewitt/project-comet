@@ -1,0 +1,208 @@
+
+% pbc_inference_recast_v2.tex
+% Context-Dependent Bayesian Inference in Cosmology (methods-first recast)
+\documentclass[11pt]{article}
+
+% Encoding/fonts — safe defaults for minimal TeX installs
+\usepackage[utf8]{inputenc}
+% \usepackage[T1]{fontenc}   % enable if EC fonts are installed
+\usepackage{lmodern}
+\usepackage{textcomp}
+
+% Core math
+\usepackage{amsmath,amssymb}
+
+% Layout/util
+\usepackage{geometry}
+\geometry{margin=1in}
+% \usepackage{microtype} % enable if installed
+\usepackage{bm}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+
+% Minimal "theorem" shim so file compiles without amsthm
+\makeatletter
+\newcounter{theorem}
+\renewcommand{\thetheorem}{\arabic{theorem}}
+\newenvironment{theorem}[1][]{%
+  \refstepcounter{theorem}%
+  \par\medskip\noindent\textbf{Theorem \thetheorem%
+  \if\relax\detokenize{#1}\relax\else\ ( #1 )\fi.}\ \itshape}{\par\medskip}
+\makeatother
+
+\title{Context-Dependent Bayesian Inference in Cosmology:\\
+Detecting and Quantifying Hidden Parochial Biases}
+\author{Alastair Hewitt (draft)}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We propose a methodological extension of cosmological inference in which priors are explicitly context-dependent. Standard pipelines assume that prior distributions on primordial modes are universal and independent of observational setup. In practice, scanning geometries, sky cuts, and noise properties embed subtle context. We formalize a framework in which priors are observer-indexed and penalize information-theoretic dependence on context templates. This induces predictable perturbations in posterior inferences, which can be tested through structural-zero diagnostics and additional null observables. We derive a closed-form toy model, outline well-posedness, and present sensitivity estimates for six predictions accessible to current and next-generation experiments. The framework is falsifiable: null results certify robustness against parochial bias; positive results reveal systematic dependence of cosmological inference on observational context.
+\end{abstract}
+
+\tableofcontents
+
+%-------------------------------------------------
+\section{Problem Statement}
+
+\subsection{Hidden assumption in current pipelines}
+Cosmological analyses typically assume a context-free, statistically isotropic prior on primordial modes. Observational context (scan patterns, masks, zodiacal emission, anisotropic noise) is treated as nuisance to be removed or marginalized, not as a structured dimension along which priors could couple.
+
+\subsection{Proposal}
+We introduce observer-indexed, context-penalized priors that allow weak coupling to a pre-registered template basis constructed from housekeeping data. This elevates ``parochial effects'' from afterthoughts to formally testable objects.
+
+%-------------------------------------------------
+\section{Framework}
+\label{sec:framework}
+
+We consider a linear data model
+\begin{equation}
+d = T a + n,\qquad n\sim\mathcal N(0,N),
+\end{equation}
+where $a\in\mathbb R^n$ are primordial modes (e.g., spherical-harmonic coefficients), $T$ is a transfer operator, and $N$ is the noise covariance. The baseline prior is $a\sim\mathcal N(0,C_\tau)$, with $\tau$ denoting age/expansion parameters.
+
+\subsection{Temporal baseline (TE)}
+The standard posterior is
+\begin{equation}
+\Sigma_{\rm TE} = (T^\top N^{-1}T + C_\tau^{-1})^{-1},\qquad
+\mu_{\rm TE} = \Sigma_{\rm TE}T^\top N^{-1}d.
+\end{equation}
+
+\subsection{Context-extended inference (CE)}
+Let $T_{\rm ctx}\in\mathbb R^{k\times n}$ be a template operator built from context (Section~\ref{sec:templates}). Introduce the prior
+\begin{equation}
+\Pi_\gamma(a) \propto \exp\!\Big[-\tfrac12\, a^\top \big(C_\tau^{-1} + \lambda_\gamma\, P_{\rm ctx}\big)a\Big],\qquad
+P_{\rm ctx} \equiv T_{\rm ctx}^\top T_{\rm ctx},
+\end{equation}
+where $\gamma$ indexes the observer/experiment and $\lambda_\gamma\ge 0$ controls context sensitivity. The CE posterior is
+\begin{equation}
+\Sigma_{\rm CE} = (T^\top N^{-1}T + C_\tau^{-1} + \lambda_\gamma P_{\rm ctx})^{-1},\qquad
+\mu_{\rm CE} = \Sigma_{\rm CE}T^\top N^{-1}d.
+\end{equation}
+
+\subsection{Well-posedness (Gaussian case)}
+\begin{theorem}[Existence and uniqueness]
+If $N\succ 0$, $C_\tau\succ 0$, $P_{\rm ctx}\succeq 0$, and $\lambda_\gamma\ge 0$, then the CE posterior exists and is unique up to standard gauge degeneracies.
+\end{theorem}
+\noindent\textit{Sketch.} The posterior precision $T^\top N^{-1}T + C_\tau^{-1} + \lambda_\gamma P_{\rm ctx}$ is symmetric positive-definite on the observable subspace; standard constraints fix null modes (e.g., monopole).
+
+%-------------------------------------------------
+\section{Principled derivation of the penalty}
+\label{sec:derivation}
+
+\subsection{Information-theoretic derivation (MaxEnt with context bound)}
+Let $p_0(a)=\mathcal N(0,C_\tau)$ be the baseline prior. We penalize information flow from context to modes by the functional
+\begin{equation}\label{eq:infoprog}
+\min_{p}\ \mathrm{KL}(p\,\|\,p_0) + \lambda_\gamma\,\mathbb E_p\!\big[\|T_{\rm ctx}a\|_2^2\big].
+\end{equation}
+Within Gaussians, the unique solution is $p(a)=\mathcal N(0,\tilde C)$ with precision
+\begin{equation}
+\tilde C^{-1} = C_\tau^{-1} + \lambda_\gamma\, T_{\rm ctx}^\top T_{\rm ctx} = C_\tau^{-1} + \lambda_\gamma P_{\rm ctx},
+\end{equation}
+i.e., a quadratic penalty in the context subspace.
+
+\subsection{Decision-theoretic derivation (minimax mis-specification)}
+Assume quadratic loss $L(a,\hat a)=\|W(a-\hat a)\|_2^2$ and an adversary that perturbs $a$ within an ellipsoid $\{a:\ \|T_{\rm ctx}a\|_2^2\le \kappa\}$. The Bayes estimator under a augmented Gaussian prior that minimizes worst-case posterior risk yields the same precision augmentation $+\lambda_\gamma P_{\rm ctx}$ with $\lambda_\gamma$ the Lagrange multiplier of the adversary's budget.
+
+%-------------------------------------------------
+\section{Context template construction}
+\label{sec:templates}
+
+\subsection{Inputs}
+Housekeeping and survey artifacts: exposure maps $E(\hat n)$, scan harmonics tied to the ecliptic, zodiacal templates $Z(\hat n)$, standard masks, beam asymmetry and far-sidelobe templates, and Galactic residual maps.
+
+\subsection{Algorithm (pre-registered)}
+\begin{enumerate}[label=\arabic*.,leftmargin=*]
+\item \textbf{Feature basis:} build a design matrix from low-$\ell$ spherical harmonics of $E(\hat n)$ and $Z(\hat n)$ in ecliptic coordinates (and their products up to a fixed order).
+\item \textbf{Orthogonalization:} regress out beam-asymmetry and far-sidelobe templates; orthogonalize remaining columns against Galactic residuals on the unmasked sky.
+\item \textbf{Normalization:} scale each column to unit variance on the analysis mask.
+\item \textbf{Select basis:} set $T_{\rm ctx}$ to the first $k$ left-singular vectors (or fix $k=1$ for a rank-1 test). Define $P_{\rm ctx}=T_{\rm ctx}^\top T_{\rm ctx}$.
+\item \textbf{Freeze:} publish $T_{\rm ctx}$ and code that reproduces it from raw housekeeping; no tuning on cosmology maps.
+\end{enumerate}
+
+%-------------------------------------------------
+\section{Toy model: explicit CE--TE difference}
+\label{sec:toy}
+
+For rank-1 $P_{\rm ctx}=cc^\top/\|c\|^2$, Woodbury gives
+\begin{align}
+\Sigma_{\rm CE}&=\Sigma_{\rm TE}-\frac{\lambda_\gamma\,\Sigma_{\rm TE} c c^\top \Sigma_{\rm TE}}{1+\lambda_\gamma\, c^\top \Sigma_{\rm TE} c},\\
+\mu_{\rm CE}-\mu_{\rm TE}&=(\Sigma_{\rm CE}-\Sigma_{\rm TE})T^\top N^{-1}d
+= \lambda_\gamma\,\frac{(\mu_{\rm TE}^\top c)}{1+\lambda_\gamma\, c^\top \Sigma_{\rm TE} c}\,\Sigma_{\rm TE}c.
+\end{align}
+For a low-$\ell$ alignment statistic $u=W\mu$,
+\begin{equation}
+\Delta u = u_{\rm CE}-u_{\rm TE}
+= \lambda_\gamma\,\frac{(\mu_{\rm TE}^\top c)}{1+\lambda_\gamma\, c^\top \Sigma_{\rm TE} c}\, W\Sigma_{\rm TE}c.
+\end{equation}
+
+%-------------------------------------------------
+\section{Diagnostics and predictions (with sensitivities)}
+\label{sec:diagnostics}
+
+We define statistics that vanish under $\Lambda$CDM but are generically $\mathcal O(\lambda_\gamma)$ under CE.
+
+\begin{enumerate}[label=\textbf{P\arabic*},leftmargin=*]
+\item \textbf{Polarization phase-locking (low-$\ell$):} correlation between TE/EE phases and $T_{\rm ctx}$ after cleaning. Sensitivity: Planck $\sim 10^{-2}$, LiteBIRD $\sim 10^{-3}$.
+\item \textbf{Lensing--ISW commutator:} order non-commutativity $\Delta_{\rm comm}^{\phi\times T}$ zero in $\Lambda$CDM, $\mathcal O(\lambda_\gamma)$ in CE. Sensitivity: CMB-S4 $\sim 10^{-3}$ of ISW amplitude.
+\item \textbf{Off-ecliptic sign flip:} a tilted scan should flip the sign of a pre-registered $S_\gamma$; binary outcome, not cosmic-variance limited.
+\item \textbf{Parameter-path sensitivity:} context derivatives $G_\gamma^{(\tau)}\neq 0$ while $G_\gamma^{(\Omega_b h^2)}=0$. Next-gen polarization can test $\mathcal O(10^{-3})$ shifts.
+\item \textbf{Galaxy 2-point anisotropy:} tiny quadrupolar leakage aligned with $T_{\rm ctx}$ on ultra-large scales; DESI+Euclid variance $\sim 2\times 10^{-3}$.
+\item \textbf{JWST field variance:} extra $1$–$2\%$ aligned variance in high-$z$ counts across independent fields; detectable with $\mathcal O(10)$ fields.
+\end{enumerate}
+
+%-------------------------------------------------
+\section{Implications for $H_0$ pathways}
+\label{sec:h0}
+
+CMB/BAO inference obtains $H_0$ via the acoustic angle $\theta_* = r_s(z_*)/D_A(z_*)$. Context coupling perturbs the low-$\ell$ anchoring and hence $\theta_*$:
+\begin{equation}
+\Delta \theta_* \approx L\,(\mu_{\rm CE}-\mu_{\rm TE})
+= \lambda_\gamma\,\frac{(\mu_{\rm TE}^\top c)}{1+\lambda_\gamma\, c^\top \Sigma_{\rm TE} c}\, L\Sigma_{\rm TE}c,
+\end{equation}
+where $L$ is the linear response operator. Thus
+\begin{equation}
+\Delta H_0^{\rm (TE)} \approx \Big(\partial H_0/\partial \theta_*\Big)\, \Delta \theta_*,
+\end{equation}
+while CE-invariant late-universe estimates (distance ladder, BBN) remain unchanged at first order.
+
+%-------------------------------------------------
+\section{Simulation demonstration and calibration}
+\label{sec:sims}
+
+\subsection{Null suite}
+Generate $\Lambda$CDM skies; add beams, anisotropic noise, zodiacal emission, masks; propagate through the full pipeline to each statistic. Use these to calibrate null distributions and Z-scores.
+
+\subsection{Injection suite}
+Inject a known $\lambda_{\rm true}$ along $P_{\rm ctx}$ at the primordial level; verify recovery of sign and amplitude for each statistic; estimate false-positive rate and uncertainty inflation when projecting out $P_{\rm ctx}$. Release code and seeds.
+
+%-------------------------------------------------
+\section{Comparison to existing robustness diagnostics}
+\label{sec:robustness}
+
+Jackknifes, null maps, and cross-spectra catch gross systematics but lack a single, parameter-level coupling to context. The CE framework provides: (i) an explicit hyperparameter $\lambda_\gamma$, (ii) pre-registered templates, and (iii) low-variance diagnostics (commutator, sign-flip) that are difficult to fake by random mask choices.
+
+%-------------------------------------------------
+\section{Multiple testing control}
+\label{sec:multiplicity}
+
+Scanning many templates risks false positives. We adopt:
+\begin{itemize}[leftmargin=*]
+\item Pre-registration of a single template family derived from housekeeping; no tuning on cosmology maps.
+\item If $K$ nearby modes are tested, control family-wise error (Bonferroni) or use FDR with declared $q$.
+\item Hold out a validation split (e.g., half-mission B) untouched until final confirmation.
+\end{itemize}
+
+%-------------------------------------------------
+\section{Empirical payoff}
+Nulls certify that pipelines are robust to context at the $10^{-3}$ level and yield upper bounds on $\lambda_\gamma$. Non-nulls reveal reproducible, sign-fixed context dependence, guiding re-analysis and instrument design (e.g., off-ecliptic scanning).
+
+%-------------------------------------------------
+\section{Conclusion}
+We recast cosmological inference to allow controlled, testable prior coupling to observational context. The program is modest in ontology, sharp in falsifiability, and useful regardless of outcome: either certify robustness or quantify a small, coherent bias with a single hyperparameter.
+
+\end{document}
