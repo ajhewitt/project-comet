@@ -1,0 +1,55 @@
+# ------------------------
+# Project Comet .gitignore
+# ------------------------
+
+# Data (Planck/WMAP FITS, sims, outputs)
+data/
+*.fits
+*.h5
+*.npz
+*.npy
+*.json
+
+# Simulation outputs
+docs/figures/
+*.png
+*.pdf
+*.svg
+
+# Build artifacts
+__pycache__/
+*.py[cod]
+*.so
+*.o
+*.a
+*.out
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Logs & temp
+*.log
+*.aux
+*.toc
+*.out
+*.synctex.gz
+*.tmp
+*.swp
+
+# Virtual envs
+.env
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS cruft
+.DS_Store
+Thumbs.db
+

@@ -6,7 +6,7 @@ orderings of the ISW×lensing cross and test for **context coupling**
 aligned with ecliptic/scan templates.
 
 If ΛCDM + context‑free priors are right, the commutator is consistent with zero.
-If not, you’ll see a repeatable, sign‑fixed deviation.
+If not, there is a repeatable, sign‑fixed deviation.
 
 ---
 
@@ -23,17 +23,19 @@ If not, you’ll see a repeatable, sign‑fixed deviation.
 ## Repo layout
 
 ```
-p2_commutator_repo/
+project_comet/
 ├─ README.md
 ├─ environment.yml
 ├─ .gitignore
 ├─ config/
 │  ├─ prereg.yaml              # frozen masks, ℓ‑ranges, bins, sign predictions
 │  └─ paths.yaml               # local paths to data products
-├─ data/                       # you put FITS here (ignored by git)
+├─ data/                       # FITS here (ignored by git)
 ├─ docs/
-│  ├─ p2_commutator_program_v2.pdf  # drop your compiled PDF(s) here
-│  └─ related_work.pdf
+│  ├─ pbc_dual_construction.pdf  # concept PDF
+│  ├─ pbc_inference.pdf        # framework PDF
+│  ├─ p2_commutator_program.pdf  # program PDF
+│  └─ tex/                     # doc LaTeX source
 ├─ scripts/
 │  ├─ fetch_planck_pr4.py      # downloads PR4 maps/masks/lensing
 │  ├─ build_context_template.py # builds ecliptic/scan template basis (frozen)
@@ -52,11 +54,9 @@ p2_commutator_repo/
 └─ docs/figures/               # auto‑created by summarize_results
 ```
 
-> **Note:** `data/` is git‑ignored. You’ll map file locations in `config/paths.yaml`.
-
 ---
 
-## Pre‑registration (freeze this before touching maps)
+## Pre‑registration
 
 All pre‑registered choices live in `config/prereg.yaml`:
 
@@ -67,7 +67,7 @@ All pre‑registered choices live in `config/prereg.yaml`:
 - **Context template:** ecliptic‑aligned basis from exposure/scan maps; orthogonalized to zodiacal and beam templates. **Publish the code and the fixed leading mode `c`.**
 - **Sign predictions:** pre‑declare the expected sign of `Δ_comm` projection onto `c`.
 - **Held‑out split:** e.g., Planck half‑mission B is never touched until the end.
-- **Multiplicity:** if you test K nearby context modes, use FDR at q=0.1. Default is K=1.
+- **Multiplicity:** testing K nearby context modes, use FDR at q=0.1. Default is K=1.
 
 Commit `config/prereg.yaml` before any analysis run.
 
@@ -89,8 +89,8 @@ Typical working set on disk: **1–3 GiB**. The full PR4 bundle is ~10 GiB, but 
 
 ```bash
 conda env create -f environment.yml
-conda activate p2comm
-# or: uv / pip, if you prefer. Just mirror environment.yml packages.
+conda activate comet
+# or: uv / pip, if preferred. Just mirror environment.yml packages.
 ```
 
 Key deps: `python>=3.10`, `healpy`, `pymaster` (NaMaster), `numpy`, `scipy`, `astropy`, `pyyaml`, `tqdm`, `matplotlib`.
@@ -142,7 +142,7 @@ The final PDF/plots go in `docs/figures/`. The primary numbers are the Z‑score
 - `run_order_B_to_A.py` — identical binning/masks; compute the reversed ordering.
 - `compute_commutator.py` — compute `Δ_comm = Σ w_L (C_L^{A→B} − C_L^{B→A})` and `S_γ` by projecting onto context mode(s); weights `w_L` come from sims or analytic N0.
 - `run_null_sims.py` — ΛCDM Gaussian skies + masks/beam/noise; produce distributions and covariances for the stats.
-- `summarize_results.py` — one table + two plots: (i) binned C_L difference with 1σ band, (ii) null distribution with your observed `Δ_comm`/`S_γ` marker.
+- `summarize_results.py` — one table + two plots: (i) binned C_L difference with 1σ band, (ii) null distribution with observed `Δ_comm`/`S_γ` marker.
 
 ---
 
@@ -197,4 +197,4 @@ See `docs/` for the short methods note and related work PDF. ISW×φ measurement
 ---
 
 ## License
-MIT for code; data under their respective public licenses (ESA/Planck, NASA/WMAP).
+BSD-3-Clause for code; data under their respective public licenses (ESA/Planck, NASA/WMAP).
