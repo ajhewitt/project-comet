@@ -28,22 +28,22 @@ project_comet/
 ├─ environment.yml
 ├─ .gitignore
 ├─ config/
-│  ├─ prereg.yaml              # frozen masks, ℓ‑ranges, bins, sign predictions
-│  └─ paths.yaml               # local paths to data products
-├─ data/                       # FITS here (ignored by git)
+│  ├─ prereg.yaml                # frozen masks, ℓ‑ranges, bins, sign predictions
+│  └─ paths.yaml                 # local paths to data products
+├─ data/                         # FITS here (ignored by git)
 ├─ docs/
 │  ├─ pbc_dual_construction.pdf  # concept PDF
-│  ├─ pbc_inference.pdf        # framework PDF
+│  ├─ pbc_inference.pdf          # framework PDF
 │  ├─ p2_commutator_program.pdf  # program PDF
-│  └─ tex/                     # doc LaTeX source
+│  └─ tex/                       # doc LaTeX source
 ├─ scripts/
-│  ├─ fetch_planck_pr4.py      # downloads PR4 maps/masks/lensing
-│  ├─ build_context_template.py # builds ecliptic/scan template basis (frozen)
-│  ├─ run_order_A_to_B.py      # lensing → ISW ordering
-│  ├─ run_order_B_to_A.py      # ISW → lensing ordering
-│  ├─ compute_commutator.py    # Δ_comm + S_γ with pre‑registered weights
-│  ├─ run_null_sims.py         # ΛCDM + mask/beam/noise sims
-│  └─ summarize_results.py     # tables/plots; writes docs/figures
+│  ├─ fetch_planck_pr4.py        # downloads PR4 maps/masks/lensing
+│  ├─ build_context_template.py  # builds ecliptic/scan template basis (frozen)
+│  ├─ run_order_A_to_B.py        # lensing → ISW ordering
+│  ├─ run_order_B_to_A.py        # ISW → lensing ordering
+│  ├─ compute_commutator.py      # Δ_comm + S_γ with pre‑registered weights
+│  ├─ run_null_sims.py           # ΛCDM + mask/beam/noise sims
+│  └─ summarize_results.py       # tables/plots; writes docs/figures
 ├─ src/
 │  ├─ io.py
 │  ├─ masking.py
@@ -51,7 +51,7 @@ project_comet/
 │  ├─ isw_filters.py
 │  ├─ commutator.py
 │  └─ context_template.py
-└─ docs/figures/               # auto‑created by summarize_results
+└─ docs/figures/                 # auto‑created by summarize_results
 ```
 
 ---
@@ -77,9 +77,9 @@ Commit `config/prereg.yaml` before any analysis run.
 
 You need these public products (paths go in `config/paths.yaml`):
 
-- **Planck PR4 (NPIPE)** SMICA T map, common T mask, exposure/scan maps, lensing mask.
-- **Planck PR4 lensing** reconstructed `phi` map (or the Carron–Lewis–Fabbian PR4 lensing likelihood bundle).
-- **WMAP9 ILC** temperature map for split validation.
+- **Planck PR4 (NPIPE) temperature maps**: [ESA Planck Legacy Archive](https://pla.esac.esa.int/#cosmology)
+- **Planck PR4 lensing maps**: [Planck PR4 lensing products](https://pla.esac.esa.int/#cosmology)
+- **WMAP9 maps**: [NASA LAMBDA archive](https://lambda.gsfc.nasa.gov/product/map/dr5/m_products.cfm)
 
 Typical working set on disk: **1–3 GiB**. The full PR4 bundle is ~10 GiB, but not required in full.
 
@@ -191,8 +191,13 @@ The final PDF/plots go in `docs/figures/`. The primary numbers are the Z‑score
 
 ---
 
-## Citing prior work
-See `docs/` for the short methods note and related work PDF. ISW×φ measurements and null tests exist (Planck, ACT, SPT); the **novelty here** is the **commutator statistic** plus **context‑projection with pre‑registered templates**.
+## Related Work
+
+Cross-correlations of CMB temperature with lensing potential have been studied as probes of the ISW effect and structure growth.
+- Planck Collaboration 2015 ISW analysis ([A&A 594, A21](https://doi.org/10.1051/0004-6361/201525831))
+- Carron et al. 2022, “Joint ISW–lensing constraints” ([arXiv:2206.07773](https://arxiv.org/abs/2206.07773))
+
+These works validate the ISW×φ observable but treat it as a single pipeline. **Project Comet** instead introduces an explicit *commutator test* that compares two orderings of the analysis, with deviations interpreted as context-sensitive systematics.
 
 ---
 
