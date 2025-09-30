@@ -1,4 +1,7 @@
-# Project Comet — A Lensing–ISW Commutator Test
+# Project Comet 
+## A Lensing–ISW Commutator Test
+
+![Project Comet](docs/project-comet.png)
 
 A crisp, pre-registered consistency test for cosmological pipelines:
 compute the **order non‑commutativity** between two logically equivalent
