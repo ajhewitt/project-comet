@@ -1,0 +1,22 @@
+[project]
+name = "project-comet"
+version = "0.1.0"
+description = "CMB lensing–ISW commutator test"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "BSD-3-Clause"}
+dependencies = [
+  "numpy", "scipy", "astropy", "healpy", "pymaster",
+  "pyyaml", "tqdm", "matplotlib", "pydantic>=2"
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "ruff", "pyright", "mkdocs-material"]
+
+[project.scripts]
+comet = "comet.cli:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
