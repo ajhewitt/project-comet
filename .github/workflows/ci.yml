@@ -36,35 +36,25 @@ jobs:
             python=3.10
 
       - name: Show env details
-        shell: "bash -l {0}"
         run: |
-          micromamba info
-          python -V
-          which python
-          python - <<'PY'
-import sys
-print('sys.path[:3]=', sys.path[:3])
-PY
-          micromamba list || true
+          micromamba run -n comet python -V
+          micromamba run -n comet which python
+          micromamba run -n comet python -c "import sys; print('sys.path[:3]=', sys.path[:3])"
+          micromamba run -n comet python -c "import numpy, healpy, pymaster as nmt; print('versions:', numpy.__version__, healpy.__version__, nmt.__version__)"
+          micromamba run -n comet conda list || micromamba list || true
 
       - name: Install project (editable) and test tools
-        shell: "bash -l {0}"
         run: |
-          pip install -U pip
-          pip install -U ruff pytest
-          # editable install; pyproject points to src/
-          pip install -e .
-          python -c "import importlib; \
-mods=['numpy','astropy.io.fits','healpy','pymaster','comet','comet.cli']; \
-[print(m, 'OK', getattr(importlib.import_module(m),'__file__',None)) for m in mods]"
+          micromamba run -n comet pip install -U pip
+          micromamba run -n comet pip install -U ruff pytest
+          micromamba run -n comet pip install -e .
+          micromamba run -n comet python -c "import importlib; mods=['numpy','astropy.io.fits','healpy','pymaster','comet','comet.cli']; [print(m, 'OK', getattr(importlib.import_module(m),'__file__',None)) for m in mods]"
 
       - name: Lint
-        shell: "bash -l {0}"
         run: |
-          ruff format --check .
-          ruff check .
+          micromamba run -n comet ruff format --check .
+          micromamba run -n comet ruff check .
 
       - name: Pytest (smoke/unit only)
-        shell: "bash -l {0}"
         run: |
-          pytest -k "unit or smoke" --maxfail=1 -q
+          micromamba run -n comet pytest -k "unit or smoke" --maxfail=1 -q
