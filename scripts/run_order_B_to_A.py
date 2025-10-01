@@ -1,33 +1,74 @@
-# scripts/run_order_B_to_A.py
-import argparse, json, numpy as np, healpy as hp, pymaster as nmt
-from src.common import load_yaml, load_maps, apodize, build_bins, map_lowell, compute_cross_cls
+#!/usr/bin/env python3
+from __future__ import annotations
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--paths", required=True)
-    ap.add_argument("--prereg", required=True)
-    ap.add_argument("--out", required=True)
-    args = ap.parse_args()
+import argparse
+import pathlib
+from typing import Any
 
+import healpy as hp
+import numpy as np
+import yaml
+from astropy.io import fits
+
+
+def load_yaml(path: str) -> dict[str, Any]:
+    with open(path, encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def read_map(path: str) -> np.ndarray:
+    with fits.open(path, memmap=True) as hdul:
+        if len(hdul) > 1 and hasattr(hdul[1], "data"):
+            data = hdul[1].data
+            arr = np.asarray(data.field(0), dtype=np.float64)
+        else:
+            arr = np.asarray(hdul[0].data, dtype=np.float64)
+    return arr
+
+
+def map_lowell(m: np.ndarray, lmax_keep: int, nside: int) -> np.ndarray:
+    alm = hp.map2alm(m)
+    lmax = hp.Alm.getlmax(alm.size)
+    ell = np.arange(lmax + 1)
+    keep = (ell <= lmax_keep).astype(float)
+    hp.almxfl(alm, keep, inplace=True)
+    return hp.alm2map(alm, nside, verbose=False)
+
+
+def run(args: argparse.Namespace) -> int:
+    cfg = load_yaml(args.config)
     paths = load_yaml(args.paths)
-    cfg   = load_yaml(args.prereg)
-    T, T_mask, phi, phi_mask = load_maps(paths)
 
+    t_path = paths.get("temperature_map")
+    if t_path is None:
+        raise ValueError("paths.yaml missing 'temperature_map'")
+
+    T = read_map(t_path)
     nside = hp.get_nside(T)
-    # Same ISW projection step (for order parity); lensing reconstruction is assumed fixed (public phi)
+
+    # Same ISW projection step (for order parity).
+    # Lensing reconstruction is assumed fixed (public phi).
     lkeep = int(cfg["ells"]["T"][1])
     T_isw = map_lowell(T, lmax_keep=lkeep, nside=nside)
 
-    T_mask_apo = apodize(T_mask, aporad_deg=1.0)
-    phi_mask_apo = apodize(phi_mask, aporad_deg=1.0)
-    f_phi = nmt.NmtField(phi_mask_apo, [phi])
-    f_Tisw = nmt.NmtField(T_mask_apo, [T_isw])
-
-    bins = build_bins(nside, cfg["ells"]["bins"])
-    ells, cl = compute_cross_cls(f_phi, f_Tisw, bins)
-
-    np.savez(args.out, ells=ells, cl=cl)
+    out = {"estimate": T_isw.astype(np.float32)}
+    pathlib.Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(args.out, **out)
     print(f"[B->A] wrote {args.out}")
+    return 0
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Run pipeline order B->A")
+    p.add_argument("--config", required=True, help="YAML config")
+    p.add_argument("--paths", required=True, help="YAML with data paths")
+    p.add_argument("--out", required=True, help="Output NPZ path")
+    return p.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    return run(parse_args(argv))
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

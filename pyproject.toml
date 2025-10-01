@@ -1,22 +1,42 @@
+[build-system]
+requires = ["setuptools>=69.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "project-comet"
+name = "comet"
 version = "0.1.0"
-description = "CMB lensing–ISW commutator test"
+description = "Project Comet: commutator analysis pipeline"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "BSD-3-Clause"}
+license = { text = "MIT" }
+authors = [{ name = "Alastair Hewitt" }]
+# Do NOT list conda-only deps like 'namaster' here. Keep those in the conda env.
 dependencies = [
-  "numpy", "scipy", "astropy", "healpy", "pymaster",
-  "pyyaml", "tqdm", "matplotlib", "pydantic>=2"
+  "numpy",
+  "scipy",
+  "astropy",
+  "healpy>=1.16",
+  "pyyaml",
+  "tqdm",
+  "matplotlib",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-cov", "ruff", "pyright", "mkdocs-material"]
+dev = ["ruff", "pytest"]
 
-[project.scripts]
-comet = "comet.cli:main"
+# >>> THIS IS WHERE THE TWO LINES GO <<<
+[tool.setuptools]
+package-dir = { "" = "src" }
 
-[build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+[tool.setuptools.packages.find]
+where = ["src"]
 
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+extend-select = ["E","F","I","UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["comet"]

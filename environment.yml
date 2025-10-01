@@ -1,12 +1,16 @@
 name: comet
-channels: [conda-forge]
+channels:
+  - conda-forge
 dependencies:
-  - python=3.11
+  - python=3.10
   - numpy
   - scipy
   - astropy
-  - healpy
-  - pymaster
+  - healpy>=1.16
+  - namaster>=1.4
   - pyyaml
   - tqdm
   - matplotlib
+  - pip
+  - pip:
+      - .

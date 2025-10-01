@@ -1,6 +1,12 @@
 # scripts/run_order_A_to_B.py
-import argparse, json, numpy as np, healpy as hp, pymaster as nmt
-from src.common import load_yaml, load_maps, apodize, build_bins, map_lowell, compute_cross_cls
+import argparse
+
+import healpy as hp
+import numpy as np
+import pymaster as nmt
+
+from src.common import apodize, build_bins, compute_cross_cls, load_maps, load_yaml, map_lowell
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -10,7 +16,7 @@ def main():
     args = ap.parse_args()
 
     paths = load_yaml(args.paths)
-    cfg   = load_yaml(args.prereg)
+    cfg = load_yaml(args.prereg)
     T, T_mask, phi, phi_mask = load_maps(paths)
 
     nside = hp.get_nside(T)
@@ -29,6 +35,7 @@ def main():
 
     np.savez(args.out, ells=ells, cl=cl)
     print(f"[A->B] wrote {args.out}")
+
 
 if __name__ == "__main__":
     main()

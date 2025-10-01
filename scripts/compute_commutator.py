@@ -1,57 +1,76 @@
-# scripts/compute_commutator.py
-import argparse, json, numpy as np
-import healpy as hp
-from src.common import load_yaml
+#!/usr/bin/env python3
+from __future__ import annotations
 
-def load_npz(p):
-    d = np.load(p)
-    return d["ells"], d["cl"]
+import argparse
+import json
+import pathlib
+from typing import Any
 
-def project_context(context_npz, mask_fits):
-    ctx = np.load(context_npz)
-    c = ctx["c"]
-    # sign convention: positive if the masked sum is positive
-    m = (hp.read_map(mask_fits, verbose=False) > 0.5).astype(float)
-    sgn = np.sign((c*m).sum())
-    return int(sgn) if sgn != 0 else 1
+import numpy as np
+import yaml
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--A", required=True, help="npz from A->B")
-    ap.add_argument("--B", required=True, help="npz from B->A")
-    ap.add_argument("--context", required=True, help="context_template.npz")
-    ap.add_argument("--prereg", required=True, help="config/prereg.yaml")
-    ap.add_argument("--out", required=True, help="output JSON")
-    args = ap.parse_args()
 
-    ellsA, clA = load_npz(args.A)
-    ellsB, clB = load_npz(args.B)
-    if not np.all(ellsA == ellsB):
-        raise RuntimeError("Bin mismatch between A and B outputs")
+def load_yaml(path: str) -> dict[str, Any]:
+    with open(path, encoding="utf-8") as f:
+        return yaml.safe_load(f)
 
-    cfg = load_yaml(args.prereg)
-    # Simple analytic weights: inverse variance proxy ~ 1/(|clA|+|clB|+eps)
-    eps = 1e-18
-    wL = 1.0 / (np.abs(clA) + np.abs(clB) + eps)
-    wL /= wL.sum()
 
-    delta = np.sum(wL * (clA - clB))
+def load_npz(path: str) -> dict[str, np.ndarray]:
+    with np.load(path) as z:
+        return {k: z[k] for k in z.files}
 
-    # Signed projection using context
-    sign_pred = cfg.get("context_sign_prediction", +1)
-    sign_obs  = project_context(args.context, cfg["masks"]["T_mask"])
-    S_gamma = float(sign_pred * np.sign(delta) * np.abs(delta))
 
-    out = {
-        "ells": ellsA.tolist(),
-        "clA_minus_clB": (clA - clB).tolist(),
-        "Delta_comm": float(delta),
-        "S_gamma_proxy": S_gamma,
-        "weights_sumcheck": float(wL.sum())
+def compute_stat(a: np.ndarray, b: np.ndarray) -> float:
+    # Placeholder statistic: signed normalized difference
+    num = float(np.sum(a - b))
+    den = float(np.sqrt(np.sum(a * a) * np.sum(b * b)) + 1e-12)
+    return num / den
+
+
+def run(args: argparse.Namespace) -> int:
+    cfg = load_yaml(args.config)
+    # If you later need observed context, load it here and actually use it.
+
+    A = load_npz(args.A)
+    B = load_npz(args.B)
+
+    a_map = A.get("estimate") or A.get("map") or A[list(A.keys())[0]]
+    b_map = B.get("estimate") or B.get("map") or B[list(B.keys())[0]]
+
+    if a_map.shape != b_map.shape:
+        raise ValueError("A and B maps must have same shape")
+
+    sign_pred = int(cfg.get("context_sign_prediction", +1))
+
+    delta = a_map - b_map
+    s_gamma = float(sign_pred * np.sign(delta.mean()) * abs(delta.mean()))
+    commutator = compute_stat(a_map, b_map)
+
+    result = {
+        "S_gamma": s_gamma,
+        "commutator": commutator,
+        "shape": list(a_map.shape),
     }
-    with open(args.out, "w") as f:
-        json.dump(out, f, indent=2)
-    print(f"[commutator] wrote {args.out} :: Δ_comm={delta:.3e}")
+    pathlib.Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    with open(args.out, "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2)
+    print(f"[commutator] wrote {args.out}")
+    return 0
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Compute commutator summary")
+    p.add_argument("--A", required=True, help="NPZ from order A")
+    p.add_argument("--B", required=True, help="NPZ from order B")
+    p.add_argument("--context", required=True, help="Context NPZ (currently unused)")
+    p.add_argument("--config", required=True, help="YAML config")
+    p.add_argument("--out", required=True, help="Output JSON path")
+    return p.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    return run(parse_args(argv))
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
