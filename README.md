@@ -20,6 +20,8 @@ If not, there is a repeatable, sign‑fixed deviation.
 - **Runtime:** Minutes for analysis; hours for 1k null simulations on a 16‑core box.
 - **Result:** Detection (pre‑registered sign) or tight null bounds on a rank‑1 context coupling \(\lambda\).
 
+![CI](https://github.com/ajhewitt/project-comet/actions/workflows/ci.yml/badge.svg)
+
 ---
 
 ## Repo layout
