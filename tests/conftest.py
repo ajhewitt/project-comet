@@ -1,12 +1,12 @@
-import os
-
+import numpy as np
+import healpy as hp
 import pytest
 
-
-def pytest_collection_modifyitems(config, items):
-    # In CI mode, skip anything marked heavy
-    if os.getenv("COMET_TEST_MODE") == "CI":
-        skip_heavy = pytest.mark.skip(reason="Skipping heavy tests in CI mode")
-        for item in items:
-            if "heavy" in item.keywords:
-                item.add_marker(skip_heavy)
+@pytest.fixture
+def tiny_maps():
+    nside = 32
+    npix = hp.nside2npix(nside)
+    rng = np.random.default_rng(42)
+    cmb = rng.normal(0, 1e-5, size=npix)
+    phi = rng.normal(0, 1e-4, size=npix)
+    return dict(cmb=cmb, phi=phi, nside=nside)
