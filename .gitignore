@@ -24,6 +24,10 @@ __pycache__/
 *.a
 *.out
 
+build/
+dist/
+*.egg-info/
+
 # Notebooks
 .ipynb_checkpoints/
 
