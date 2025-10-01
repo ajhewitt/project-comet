@@ -27,7 +27,7 @@ jobs:
       - name: Set up micromamba
         uses: mamba-org/setup-micromamba@v1
         with:
-          micromamba-version: "1.5.8"
+          micromamba-version: "latest"      # or pin exactly: "1.5.8-0"
           environment-file: environment.yml
           cache-environment: true
           cache-downloads: true
@@ -40,7 +40,6 @@ jobs:
           micromamba run -n comet python -V
           micromamba run -n comet which python
           micromamba run -n comet python -c "import sys; print('sys.path[:3]=', sys.path[:3])"
-          micromamba run -n comet python -c "import numpy, healpy, pymaster as nmt; print('versions:', numpy.__version__, healpy.__version__, nmt.__version__)"
           micromamba run -n comet conda list || micromamba list || true
 
       - name: Install project (editable) and test tools
