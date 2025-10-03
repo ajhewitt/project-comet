@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Run comet with fixed defaults so you don't remember flags.
+set -euo pipefail
+micromamba run -n comet python -m comet.cli run   --ordering both   --prereg config/prereg.yaml   --paths config/paths.example.yaml   --out artifacts/summary.json

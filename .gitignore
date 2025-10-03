@@ -24,6 +24,11 @@ __pycache__/
 *.a
 *.out
 
+artifacts/
+*.npy
+*.npz
+*.png
+
 build/
 dist/
 *.egg-info/
@@ -57,3 +62,7 @@ env/
 .DS_Store
 Thumbs.db
 
+artifacts/
+*.npy
+*.npz
+*.png
