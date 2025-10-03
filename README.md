@@ -8,7 +8,7 @@ This project integrates:
 - A modular **Python CLI** (`comet`) for configuration, running, and summarizing results.
 - **Continuous integration** with scientific software dependencies pinned for reproducibility.
 
-[![CI](https://github.com/ajhewitt/project-comet/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ajhewitt/project-comet/actions/workflows/ci.yml)
+![CI](https://github.com/ajhewitt/project-comet/actions/workflows/ci.yaml/badge.svg?branch=main)
 
 ---
 
