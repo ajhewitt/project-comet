@@ -4,39 +4,68 @@ on:
   push:
     branches: [ main ]
   pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    env:
+      MPLBACKEND: Agg
+      OMP_NUM_THREADS: 2
+      MKL_NUM_THREADS: 2
+      COMET_TEST_MODE: CI
 
-      - name: Setup micromamba
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up micromamba
         uses: mamba-org/setup-micromamba@v2
         with:
-          environment-file: ""
-          create-args: >-
-            python=3.11
+          environment-name: comet
+          environment-file: environment.yml
           cache-environment: true
+          cache-downloads: true
+          micromamba-version: "latest"
           init-shell: bash
 
-      - name: Install compiled deps (conda-forge)
+      - name: Show env details
         run: |
-          micromamba install -n base -c conda-forge -y healpy namaster cfitsio fftw
+          micromamba run -n comet python -V
+          micromamba run -n comet which python
+          micromamba run -n comet python -c "import sys; print('sys.path[:3]=', sys.path[:3])"
+          micromamba run -n comet conda list || micromamba list || true
 
-      - name: Install Python deps
+      - name: Install project (editable) and test tools
         run: |
-          python -m pip install -U pip
-          pip install -e ".[dev]"
+          micromamba run -n comet python -m pip install -U pip
+          # install your package; dev deps like pytest/ruff can be in [project.optional-dependencies].dev
+          micromamba run -n comet pip install -e ".[dev]"
+          # sanity imports so we fail fast if compiled deps are missing
+          micromamba run -n comet python - <<'PY'
+          import importlib
+          for m in ("numpy","astropy.io.fits","healpy","pymaster","comet","comet.cli"):
+              mod = importlib.import_module(m)
+              print(m, "OK", getattr(mod, "__file__", None))
+          PY
 
-      - name: Ruff format check
-        run: ruff format --check .
+      - name: Lint
+        run: |
+          micromamba run -n comet ruff format --check .
+          micromamba run -n comet ruff check .
 
-      - name: Ruff lint
-        run: ruff check .
-
-      - name: Unit tests
-        run: pytest -q -m "not local"
+      - name: Pytest (unit and smoke)
+        run: |
+          micromamba run -n comet pytest -q -m "not local"
 
       - name: CLI smoke
-        run: python -m comet.cli demo
+        run: |
+          micromamba run -n comet python -m comet.cli demo

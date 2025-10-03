@@ -1,13 +1,18 @@
 name: comet
-channels: [conda-forge]
+channels:
+  - conda-forge
 dependencies:
-  - python=3.10
-  - numpy=2.*
-  - scipy
-  - astropy=6.*
-  - healpy>=1.16,<1.19
-  - namaster>=2.3
-  - pyyaml
-  - tqdm
-  - matplotlib
+  - python=3.11
   - pip
+  # compiled deps so pip doesn't play wheel roulette
+  - healpy
+  - namaster           # provides the 'pymaster' import
+  - cfitsio
+  - fftw
+  # optional: pin numpy if you want tighter control
+  - numpy
+  - pip:
+      # you can keep these in pyproject [project.optional-dependencies].dev too,
+      # but putting them here avoids network churn if you cache the env
+      - pytest
+      - ruff
