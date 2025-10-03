@@ -9,3 +9,7 @@ dependencies:
   - cfitsio
   - fftw
   - numpy
+  - pip:
+      - ruff
+      - pytest
+      - mypy
