@@ -1,42 +1,6 @@
-[build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "project-comet"
-version = "0.0.1"
-description = "Project Comet: commutator test for CMB lensing–ISW pipelines"
-readme = "README.md"
-requires-python = ">=3.10"
-license = {text = "MIT"}
-authors = [{ name = "Project Comet team" }]
-dependencies = [
-    "numpy>=1.24",
-    "pyyaml>=6.0.1",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "ruff>=0.5.0",
-    "mypy>=1.8.0",
-]
-
-[tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["comet*"]
-
-[project.scripts]
-comet = "comet.cli:main"
-
-# Ruff configuration (correct sections)
 [tool.ruff]
 line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 extend-select = ["I"]
-

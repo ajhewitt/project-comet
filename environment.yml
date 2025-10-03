@@ -4,15 +4,8 @@ channels:
 dependencies:
   - python=3.11
   - pip
-  # compiled deps so pip doesn't play wheel roulette
   - healpy
-  - namaster           # provides the 'pymaster' import
+  - namaster
   - cfitsio
   - fftw
-  # optional: pin numpy if you want tighter control
   - numpy
-  - pip:
-      # you can keep these in pyproject [project.optional-dependencies].dev too,
-      # but putting them here avoids network churn if you cache the env
-      - pytest
-      - ruff

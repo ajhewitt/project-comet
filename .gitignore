@@ -1,63 +1,41 @@
-# ------------------------
-# Project Comet .gitignore
-# ------------------------
-
-# Data (Planck/WMAP FITS, sims, outputs)
-data/
-*.fits
-*.h5
-*.npz
-*.npy
-*.json
-
-# Simulation outputs
-docs/figures/
-*.png
-*.pdf
-*.svg
-
-# Build artifacts
+# Python cruft
 __pycache__/
 *.py[cod]
-*.so
-*.o
-*.a
-*.out
+*.pyo
 
-build/
+# Packaging cruft
+*.egg-info/
 dist/
-*.egg-info/
+build/
 
-# Notebooks
-.ipynb_checkpoints/
-
-# Logs & temp
-*.log
-*.aux
-*.toc
-*.out
-*.synctex.gz
-*.tmp
-*.swp
-
-# Virtual envs
-.env
+# Virtual envs and local package managers
 .venv/
-venv/
-env/
-*.egg-info/
-.eggs/
+.env/
+.micromamba/
 
-# IDE
-.vscode/
-.idea/
-*.iml
+# Test cache
+.pytest_cache/
 
-# OS cruft
-.DS_Store
-Thumbs.db
+# Ruff, mypy, coverage, etc.
+.mypy_cache/
+.coverage
+htmlcov/
 
+# Project-specific junk
 artifacts/
 *.npy
 *.npz
 *.png
+
+# Data
+data/
+*.fits
+*.hdf5
+*.npz
+*.npy
+
+# Generated docs/figures
+docs/figures/
+*.png
+*.pdf
+*.svg

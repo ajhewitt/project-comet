@@ -27,6 +27,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Make ONE named env and cache it. Yes, you must give it a name.
       - name: Set up micromamba
         uses: mamba-org/setup-micromamba@v2
         with:
@@ -41,28 +42,24 @@ jobs:
         run: |
           micromamba run -n comet python -V
           micromamba run -n comet which python
-          micromamba run -n comet python -c "import sys; print('sys.path[:3]=', sys.path[:3])"
-          micromamba run -n comet conda list || micromamba list || true
-
-      - name: Install project (editable) and test tools
-        run: |
-          micromamba run -n comet python -m pip install -U pip
-          # install your package; dev deps like pytest/ruff can be in [project.optional-dependencies].dev
-          micromamba run -n comet pip install -e ".[dev]"
-          # sanity imports so we fail fast if compiled deps are missing
           micromamba run -n comet python - <<'PY'
-          import importlib
-          for m in ("numpy","astropy.io.fits","healpy","pymaster","comet","comet.cli"):
-              mod = importlib.import_module(m)
-              print(m, "OK", getattr(mod, "__file__", None))
+          import importlib, sys
+          print('sys.path[:3]=', sys.path[:3])
+          for m in ("numpy","astropy.io.fits","healpy","pymaster"):
+              print(m, '->', getattr(importlib.import_module(m), '__file__', None))
           PY
 
-      - name: Lint
+      - name: Install project (editable) + dev tools
+        run: |
+          micromamba run -n comet python -m pip install -U pip
+          micromamba run -n comet pip install -e ".[dev]"
+
+      - name: Lint (Ruff format + lint)
         run: |
           micromamba run -n comet ruff format --check .
           micromamba run -n comet ruff check .
 
-      - name: Pytest (unit and smoke)
+      - name: Unit tests (skip local-data tests)
         run: |
           micromamba run -n comet pytest -q -m "not local"
 
