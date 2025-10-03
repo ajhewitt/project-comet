@@ -1,76 +1,98 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 from __future__ import annotations
 
 import argparse
 import json
-import pathlib
-from typing import Any
+from pathlib import Path
 
 import numpy as np
-import yaml
 
 
-def load_yaml(path: str) -> dict[str, Any]:
-    with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+def _stable_z(delta: np.ndarray, C: np.ndarray) -> float | None:
+    """
+    Compute Z = sqrt(delta^T C^{-1} delta) robustly.
+
+    Strategy:
+      1) Add jitter scaled to the trace(C)/n and try Cholesky solves.
+      2) If that fails up to a generous ceiling, fall back to pinv with rcond.
+    """
+    n = C.shape[0]
+    if n == 0 or delta.size != n:
+        return None
+
+    tr = float(np.trace(C))
+    base = 1e-10 * (tr / max(n, 1) if tr > 0 else 1.0)
+    jitter_levels = [0.0, base, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4]
+
+    for eps in jitter_levels:
+        try:
+            Ci = C + eps * np.eye(n)
+            L = np.linalg.cholesky(Ci)
+            # Solve L y = delta
+            y = np.linalg.solve(L, delta)
+            # Solve L^T x = y
+            x = np.linalg.solve(L.T, y)
+            z2 = float(delta @ x)
+            return float(np.sqrt(max(z2, 0.0)))
+        except np.linalg.LinAlgError:
+            continue
+
+    # Fallback: Moore-Penrose pseudoinverse with a conservative rcond
+    Ci = np.linalg.pinv(C, rcond=1e-6)
+    z2 = float(delta @ (Ci @ delta))
+    return float(np.sqrt(max(z2, 0.0)))
 
 
-def load_npz(path: str) -> dict[str, np.ndarray]:
-    with np.load(path) as z:
-        return {k: z[k] for k in z.files}
+def _save_json(obj, path: Path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(obj, indent=2, sort_keys=True))
 
 
-def compute_stat(a: np.ndarray, b: np.ndarray) -> float:
-    # Placeholder statistic: signed normalized difference
-    num = float(np.sum(a - b))
-    den = float(np.sqrt(np.sum(a * a) * np.sum(b * b)) + 1e-12)
-    return num / den
+def _save_npy(arr: np.ndarray, path: Path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.save(path.as_posix(), arr)
 
 
-def run(args: argparse.Namespace) -> int:
-    cfg = load_yaml(args.config)
-    # If you later need observed context, load it here and actually use it.
+def main():
+    ap = argparse.ArgumentParser(description="Compute commutator Δ and Z")
+    ap.add_argument("--order-a", default="artifacts/order_A_to_B.npz")
+    ap.add_argument("--order-b", default="artifacts/order_B_to_A.npz")
+    ap.add_argument("--cov", default="artifacts/cov_delta.npy")
+    ap.add_argument("--out-delta", default="artifacts/delta_ell.npy")
+    ap.add_argument("--out-summary", default="artifacts/summary.json")
+    args = ap.parse_args()
 
-    A = load_npz(args.A)
-    B = load_npz(args.B)
+    A = np.load(args.order_a)["cl"]
+    B = np.load(args.order_b)["cl"]
+    if A.shape != B.shape:
+        raise ValueError(f"Bandpower shapes differ: {A.shape} vs {B.shape}")
 
-    a_map = A.get("estimate") or A.get("map") or A[list(A.keys())[0]]
-    b_map = B.get("estimate") or B.get("map") or B[list(B.keys())[0]]
+    delta = A - B
+    _save_npy(delta, Path(args.out_delta))
 
-    if a_map.shape != b_map.shape:
-        raise ValueError("A and B maps must have same shape")
+    z = None
+    cov_path = Path(args.cov)
+    if cov_path.exists():
+        C = np.load(cov_path)
+        if C.shape[0] != C.shape[1] or C.shape[0] != delta.size:
+            raise ValueError(f"Covariance shape {C.shape} incompatible with delta {delta.shape}")
+        z = _stable_z(delta, C)
 
-    sign_pred = int(cfg.get("context_sign_prediction", +1))
-
-    delta = a_map - b_map
-    s_gamma = float(sign_pred * np.sign(delta.mean()) * abs(delta.mean()))
-    commutator = compute_stat(a_map, b_map)
-
-    result = {
-        "S_gamma": s_gamma,
-        "commutator": commutator,
-        "shape": list(a_map.shape),
+    summary = {
+        "nbins": int(delta.size),
+        "z": None if z is None else float(z),
+        "inputs": {
+            "order_a": args.order_a,
+            "order_b": args.order_b,
+            "cov": args.cov if cov_path.exists() else None,
+        },
+        "outputs": {
+            "delta": args.out_delta,
+        },
     }
-    pathlib.Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-    with open(args.out, "w", encoding="utf-8") as f:
-        json.dump(result, f, indent=2)
-    print(f"[commutator] wrote {args.out}")
-    return 0
-
-
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Compute commutator summary")
-    p.add_argument("--A", required=True, help="NPZ from order A")
-    p.add_argument("--B", required=True, help="NPZ from order B")
-    p.add_argument("--context", required=True, help="Context NPZ (currently unused)")
-    p.add_argument("--config", required=True, help="YAML config")
-    p.add_argument("--out", required=True, help="Output JSON path")
-    return p.parse_args(argv)
-
-
-def main(argv: list[str] | None = None) -> int:
-    return run(parse_args(argv))
+    _save_json(summary, Path(args.out_summary))
+    print(json.dumps({"msg": f"delta bins={delta.size} z={summary['z']}"}, sort_keys=True))
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

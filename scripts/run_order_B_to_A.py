@@ -1,74 +1,52 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 from __future__ import annotations
 
 import argparse
-import pathlib
-from typing import Any
+from pathlib import Path
 
 import healpy as hp
 import numpy as np
-import yaml
-from astropy.io import fits
+from commutator_common import (
+    build_mask,
+    nm_bandpowers,
+    nm_bins_from_params,
+    nm_field_from_scalar,
+    read_map,
+    save_json,
+    summary_line,
+)
 
 
-def load_yaml(path: str) -> dict[str, Any]:
-    with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+def main():
+    ap = argparse.ArgumentParser(description="Run ordering B to A (phi -> CMB)")
+    ap.add_argument("--data-dir", default="data")
+    ap.add_argument("--cmb", default="COM_CompMap_CMB-smica_2048_R1.20.fits")
+    ap.add_argument("--phi", default="COM_CompMap_Lensing_2048_R1.10.fits")
+    ap.add_argument("--quick-nside", type=int, default=256, help="Downsample before analysis")
+    ap.add_argument("--nlb", type=int, default=50)
+    ap.add_argument("--lmax", type=int, default=None)  # kept for interface parity, not used
+    ap.add_argument("--out", default="artifacts/order_B_to_A.npz")
+    args = ap.parse_args()
 
+    d = Path(args.data_dir)
+    cmb = read_map(d / args.cmb, quick_nside=args.quick_nside)
+    phi = read_map(d / args.phi, quick_nside=args.quick_nside)
+    nside = hp.get_nside(cmb)
 
-def read_map(path: str) -> np.ndarray:
-    with fits.open(path, memmap=True) as hdul:
-        if len(hdul) > 1 and hasattr(hdul[1], "data"):
-            data = hdul[1].data
-            arr = np.asarray(data.field(0), dtype=np.float64)
-        else:
-            arr = np.asarray(hdul[0].data, dtype=np.float64)
-    return arr
+    mask = (build_mask(cmb) * build_mask(phi)).astype(float)
+    bins = nm_bins_from_params(nside=nside, lmax=args.lmax, nlb=args.nlb)
 
+    f1 = nm_field_from_scalar(phi, mask)
+    f2 = nm_field_from_scalar(cmb, mask)
+    cl = nm_bandpowers(f1, f2, bins)
 
-def map_lowell(m: np.ndarray, lmax_keep: int, nside: int) -> np.ndarray:
-    alm = hp.map2alm(m)
-    lmax = hp.Alm.getlmax(alm.size)
-    ell = np.arange(lmax + 1)
-    keep = (ell <= lmax_keep).astype(float)
-    hp.almxfl(alm, keep, inplace=True)
-    return hp.alm2map(alm, nside, verbose=False)
-
-
-def run(args: argparse.Namespace) -> int:
-    cfg = load_yaml(args.config)
-    paths = load_yaml(args.paths)
-
-    t_path = paths.get("temperature_map")
-    if t_path is None:
-        raise ValueError("paths.yaml missing 'temperature_map'")
-
-    T = read_map(t_path)
-    nside = hp.get_nside(T)
-
-    # Same ISW projection step (for order parity).
-    # Lensing reconstruction is assumed fixed (public phi).
-    lkeep = int(cfg["ells"]["T"][1])
-    T_isw = map_lowell(T, lmax_keep=lkeep, nside=nside)
-
-    out = {"estimate": T_isw.astype(np.float32)}
-    pathlib.Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(args.out, **out)
-    print(f"[B->A] wrote {args.out}")
-    return 0
-
-
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Run pipeline order B->A")
-    p.add_argument("--config", required=True, help="YAML config")
-    p.add_argument("--paths", required=True, help="YAML with data paths")
-    p.add_argument("--out", required=True, help="Output NPZ path")
-    return p.parse_args(argv)
-
-
-def main(argv: list[str] | None = None) -> int:
-    return run(parse_args(argv))
+    np.savez(Path(args.out), cl=cl, nside=nside, nlb=args.nlb)
+    save_json(
+        {"order": "B_to_A", "nside": nside, "nbins": int(cl.size)},
+        Path(args.out).with_suffix(".json"),
+    )
+    summary_line(f"wrote {args.out} with {cl.size} bins at nside={nside}")
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
