@@ -24,11 +24,6 @@ __pycache__/
 *.a
 *.out
 
-artifacts/
-*.npy
-*.npz
-*.png
-
 build/
 dist/
 *.egg-info/

@@ -5,10 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-import numpy as np
-
-from .commutator import commutator, z_score
-from .config import get_data_dir
+from .run import run_pipeline
 
 DEFAULT_PREREG = "config/prereg.yaml"
 DEFAULT_PATHS = "config/paths.example.yaml"
@@ -19,10 +16,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="comet", description="Project Comet CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # demo
+    # demo (kept for compatibility, calls run_pipeline in dry mode)
     p_demo = subparsers.add_parser("demo", help="Run a tiny synthetic demo")
-    p_demo.add_argument("--ell-min", type=int, default=30)
-    p_demo.add_argument("--ell-max", type=int, default=300)
     p_demo.set_defaults(fn=_cmd_demo)
 
     # run
@@ -36,14 +31,19 @@ def build_parser() -> argparse.ArgumentParser:
         default="both",
         help="Pipeline ordering to execute",
     )
+    p_run.add_argument(
+        "--check-only",
+        action="store_true",
+        help="Only validate inputs and write a summary without heavy math",
+    )
     p_run.set_defaults(fn=_cmd_run)
 
-    # summarize
+    # summarize (unchanged behavior)
     p_sum = subparsers.add_parser("summarize", help="Summarize latest artifacts")
     p_sum.add_argument("--in", dest="inp", default=DEFAULT_OUT, help="Summary JSON to read")
     p_sum.set_defaults(fn=_cmd_summarize)
 
-    # context
+    # context (placeholder)
     p_ctx = subparsers.add_parser("context", help="Show configured context templates")
     p_ctx.add_argument("--paths", default=DEFAULT_PATHS, help="Path to paths/config YAML")
     p_ctx.set_defaults(fn=_cmd_context)
@@ -57,42 +57,32 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _cmd_demo(args: argparse.Namespace) -> int:
-    ell = np.arange(args.ell_min, args.ell_max)
-    x = np.ones_like(ell, dtype=float)
-    y = np.ones_like(ell, dtype=float) * 2
-    delta = commutator(x, y)
-    cov = np.eye(delta.size)
-    payload = {"z": z_score(delta, cov), "size": int(delta.size)}
+    payload = run_pipeline(check_only=True)
     print(json.dumps(payload))
     return 0
 
 
-def _ensure_parent(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-
 def _cmd_run(args: argparse.Namespace) -> int:
     out = Path(args.out)
-    _ensure_parent(out)
-    payload = {
-        "prereg": args.prereg,
-        "paths": args.paths,
-        "ordering": args.ordering,
-        "nbins": 10,
-        "z": 0.0,
-    }
-    out.write_text(json.dumps(payload))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = run_pipeline(
+        prereg_path=args.prereg,
+        paths_path=args.paths,
+        ordering=args.ordering,
+        check_only=args.check_only,
+    )
+    out.write_text(json.dumps(payload, indent=2, sort_keys=True))
     print(json.dumps({"wrote": str(out), "ordering": args.ordering}))
     return 0
 
 
 def _cmd_summarize(args: argparse.Namespace) -> int:
     p = Path(args.inp)
-    if not p.exists():
-        print(json.dumps({"error": f"missing {p}"}))
-        return 2
     try:
         data = json.loads(p.read_text())
+    except FileNotFoundError:
+        print(json.dumps({"error": f"missing {p}"}))
+        return 2
     except Exception as e:
         print(json.dumps({"error": str(e)}))
         return 2
@@ -110,9 +100,16 @@ def _cmd_context(args: argparse.Namespace) -> int:
 
 
 def _cmd_data(args: argparse.Namespace) -> int:
+    from .config import get_data_dir
+
     d = get_data_dir()
     resp = {"data_dir": str(d)}
-    if args.list and d.exists():
+    if d.exists():
+        if (d / "COM_CompMap_Lensing_2048_R1.10.fits").exists():
+            resp["lensing_map"] = "COM_CompMap_Lensing_2048_R1.10.fits"
+        if (d / "COM_CompMap_CMB-smica_2048_R1.20.fits").exists():
+            resp["cmb_map"] = "COM_CompMap_CMB-smica_2048_R1.20.fits"
+    if getattr(args, "list", False) and d.exists():
         try:
             resp["files"] = sorted([f.name for f in d.iterdir() if f.is_file()])
         except Exception:
