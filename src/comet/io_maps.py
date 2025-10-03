@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from pathlib import Path
+
 import healpy as hp
 import numpy as np
 
@@ -22,4 +24,8 @@ def get_nside(m: np.ndarray) -> int:
 
 
 def map_info(m: np.ndarray) -> dict:
-    return dict(nside=get_nside(m), npix=m.size, f_sky=float(np.isfinite(m).mean()))
+    return {
+        "nside": get_nside(m),
+        "npix": m.size,
+        "f_sky": float(np.isfinite(m).mean()),
+    }

@@ -1,5 +1,7 @@
-import numpy as np
+from __future__ import annotations
+
 import healpy as hp
+import numpy as np
 import pytest
 
 
@@ -10,4 +12,4 @@ def tiny_maps():
     rng = np.random.default_rng(42)
     cmb = rng.normal(0, 1e-5, size=npix)
     phi = rng.normal(0, 1e-4, size=npix)
-    return dict(cmb=cmb, phi=phi, nside=nside)
+    return {"cmb": cmb, "phi": phi, "nside": nside}

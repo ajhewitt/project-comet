@@ -1,10 +1,13 @@
-from pathlib import Path
+from __future__ import annotations
+
 import os
+from pathlib import Path
+
 import yaml
 
 
-def load_prereg(path: str | os.PathLike):
-    with open(path, "r") as f:
+def load_prereg(path: str | os.PathLike) -> dict:
+    with open(path) as f:
         return yaml.safe_load(f)
 
 
