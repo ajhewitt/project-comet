@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 import os
 from pathlib import Path
+
 import pytest
-from comet.io_maps import read_fits_map, map_info
+
+from comet.io_maps import map_info, read_fits_map
 
 
 @pytest.mark.skipif(os.getenv("COMET_DATA_DIR") is None, reason="no local data")
