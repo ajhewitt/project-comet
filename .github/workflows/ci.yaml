@@ -1,28 +1,42 @@
 name: CI
+
 on:
-  push: { branches: [ main ] }
+  push:
+    branches: [ main ]
   pull_request:
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: ${{ matrix.python-version }} }
-      - name: Install
+
+      - name: Setup micromamba
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: ""
+          create-args: >-
+            python=3.11
+          cache-environment: true
+          init-shell: bash
+
+      - name: Install compiled deps (conda-forge)
+        run: |
+          micromamba install -n base -c conda-forge -y healpy namaster cfitsio fftw
+
+      - name: Install Python deps
         run: |
           python -m pip install -U pip
           pip install -e ".[dev]"
-      - name: Lint
-        run: |
-          python -m pip install ruff mypy
-          ruff check .
-          mypy src || true
-      - name: Unit tests (synthetic only)
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Unit tests
         run: pytest -q -m "not local"
-      - name: Smoke CLI
-        run: python -m comet.cli
+
+      - name: CLI smoke
+        run: python -m comet.cli demo

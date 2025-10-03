@@ -9,7 +9,8 @@ import numpy as np
 def read_fits_map(path: Path) -> np.ndarray:
     if not path.exists():
         raise FileNotFoundError(path)
-    m = hp.read_map(path.as_posix(), verbose=False)
+    # Healpy deprecated the 'verbose' kwarg; just don't pass it.
+    m = hp.read_map(path.as_posix())
     if m.ndim != 1:
         m = np.array(m)
         if m.ndim == 2 and m.shape[0] >= 1:
