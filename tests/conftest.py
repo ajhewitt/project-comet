@@ -2,6 +2,7 @@ import numpy as np
 import healpy as hp
 import pytest
 
+
 @pytest.fixture
 def tiny_maps():
     nside = 32

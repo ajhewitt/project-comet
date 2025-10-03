@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from comet.io_maps import read_fits_map, map_info
 
+
 @pytest.mark.skipif(os.getenv("COMET_DATA_DIR") is None, reason="no local data")
 def test_read_local_maps():
     dd = Path(os.environ["COMET_DATA_DIR"])

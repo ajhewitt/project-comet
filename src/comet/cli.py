@@ -11,6 +11,7 @@ DEFAULT_PREREG = "config/prereg.yaml"
 DEFAULT_PATHS = "config/paths.example.yaml"
 DEFAULT_OUT = "artifacts/summary.json"
 
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="comet", description="Project Comet CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -30,7 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--ordering",
         choices=["a_then_b", "b_then_a", "both"],
         default="both",
-        help="Pipeline ordering to execute"
+        help="Pipeline ordering to execute",
     )
     p_run.set_defaults(fn=_cmd_run)
 
@@ -51,6 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     return parser
 
+
 def _cmd_demo(args: argparse.Namespace) -> int:
     ell = np.arange(args.ell_min, args.ell_max)
     x = np.ones_like(ell, dtype=float)
@@ -61,8 +63,10 @@ def _cmd_demo(args: argparse.Namespace) -> int:
     print(json.dumps(payload))
     return 0
 
+
 def _ensure_parent(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+
 
 def _cmd_run(args: argparse.Namespace) -> int:
     out = Path(args.out)
@@ -78,6 +82,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
     print(json.dumps({"wrote": str(out), "ordering": args.ordering}))
     return 0
 
+
 def _cmd_summarize(args: argparse.Namespace) -> int:
     p = Path(args.inp)
     if not p.exists():
@@ -91,13 +96,15 @@ def _cmd_summarize(args: argparse.Namespace) -> int:
     print(json.dumps({"summary": data}))
     return 0
 
+
 def _cmd_context(args: argparse.Namespace) -> int:
     payload = {
         "paths": args.paths,
-        "templates": ["ecliptic_scan", "galactic_mask", "hitcount_gradient"]
+        "templates": ["ecliptic_scan", "galactic_mask", "hitcount_gradient"],
     }
     print(json.dumps(payload))
     return 0
+
 
 def _cmd_data(args: argparse.Namespace) -> int:
     d = get_data_dir()
@@ -110,10 +117,12 @@ def _cmd_data(args: argparse.Namespace) -> int:
     print(json.dumps(resp))
     return 0
 
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     ns = parser.parse_args(argv)
     return ns.fn(ns)
+
 
 if __name__ == "__main__":
     sys.exit(main())
