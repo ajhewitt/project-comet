@@ -32,9 +32,11 @@ include = ["comet*"]
 [project.scripts]
 comet = "comet.cli:main"
 
+# Ruff configuration (correct sections)
 [tool.ruff]
-extend-select = ["I"]
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E","F","I","UP"]
+select = ["E", "F", "I", "UP"]
+extend-select = ["I"]
+
