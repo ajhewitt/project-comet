@@ -1,56 +1,40 @@
-name: Smoke
+name: Smoke Test
 
 on:
   push:
     branches: [ main ]
   pull_request:
+    branches: [ main ]
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up micromamba
-        uses: mamba-org/setup-micromamba@v2
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          # If you already have environment.yml it will be used.
-          # If not, we still create an env and install deps below.
-          environment-file: environment.yml
-          cache-environment: true
-          cache-downloads: true
-          create-args: |
-            python=3.11
+          python-version: "3.11"
 
-      - name: Ensure deps (numpy + healpy for stub generation)
-        shell: bash -l {0}
-        run: |
-          # Prefer conda-forge to avoid system lib hell
-          micromamba install -y -c conda-forge numpy healpy
-          python -V
-          python -c "import numpy, healpy; print('numpy', numpy.__version__)"
-
-      - name: Install package (editable) and dev tools
-        shell: bash -l {0}
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          # Install your package
-          python -m pip install -e ".[dev]" || true
-          # Safety net so lint/tests are present even if you forgot extras
-          python -m pip install ruff pytest || true
+          pip install numpy pytest ruff
 
-      - name: Make pipeline script executable
-        shell: bash -l {0}
+      - name: Lint
+        run: ruff check .
+
+      - name: Run quick pipeline
         run: |
-          test -f scripts/pipeline_quick.sh || { echo "scripts/pipeline_quick.sh missing"; exit 2; }
           chmod +x scripts/pipeline_quick.sh
+          COMET_DATA_DIR=$PWD/data COMET_NSIDE=64 COMET_NSIMS=5 ./scripts/pipeline_quick.sh
 
-      - name: Prepare stub Planck data if missing
-        shell: bash -l {0}
+      - name: Verify artifacts
         run: |
-          python - <<'PY'
-          import os, numpy as np
-          import healpy as hp
-          data_dir = os.path.join(os.getcwd(), "da_
+          python -c "import numpy as np; import sys; \
+          import os; \
+          expected=['delta.npy','cov_delta.npy','z_scores.npy']; \
+          missing=[f for f in expected if not os.path.exists(os.path.join('artifacts',f))]; \
+          sys.exit(1) if missing else print('Artifacts present:', expected)"
