@@ -11,3 +11,29 @@ micromamba run -n "$ENV_NAME" ruff format --check .
 micromamba run -n "$ENV_NAME" ruff check .
 micromamba run -n "$ENV_NAME" pytest -q -m "not local"
 COMET_ALLOW_DIRTY=1 micromamba run -n "$ENV_NAME" python -m comet.cli demo
+
+# --- smoke: quick artifact check for CI/dev ---
+if [[ "${1:-}" == "smoke" ]]; then
+  set -euo pipefail
+
+  export COMET_DATA_DIR="${COMET_DATA_DIR:-$PWD/data}"
+  export COMET_NSIDE="${COMET_NSIDE:-64}"
+  export COMET_NSIMS="${COMET_NSIMS:-5}"
+  export COMET_NBINS="${COMET_NBINS:-10}"
+
+  # run the quick pipeline (already in repo)
+  chmod +x scripts/pipeline_quick.sh
+  ./scripts/pipeline_quick.sh
+
+  # verify required artifacts exist
+  python - <<'PY'
+import os, sys
+req = ["delta.npy", "cov_delta.npy", "z_scores.npy"]
+missing = [f for f in req if not os.path.exists(os.path.join("artifacts", f))]
+if missing:
+    print("Missing artifacts:", missing, file=sys.stderr)
+    sys.exit(1)
+print("Artifacts OK:", ", ".join(req))
+PY
+  exit 0
+fi

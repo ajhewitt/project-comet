@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# scripts/pipeline_quick.sh
 # Quiet, minimal smoke pipeline. Only requires numpy (auto-installs into .venv_quick if missing).
 
 set -euo pipefail
@@ -61,19 +60,30 @@ PY
 # Deterministic fake compute that always produces artifacts
 $PYRUN - <<PY
 import os, numpy as np
-np.random.seed(int(os.environ.get("COMET_NSIMS","${NSIMS}")))
+rng = np.random.default_rng(int(os.environ.get("COMET_NSIMS","${NSIMS}")))
 bins = int(os.environ.get("COMET_NBINS","${NBINS}"))
 
-delta = np.random.normal(0, 0.1, size=bins).astype("float32")
-cov = (0.05*np.eye(bins) + 1e-4*np.random.rand(bins,bins)).astype("float32")
-cov = ((cov + cov.T)/2).astype("float32")
-# ensure positive-definite
-w,_ = np.linalg.eigh(cov)
-bump = max(0.0, 1e-6 - float(w.min()))
-cov += np.eye(bins, dtype="float32") * bump
-std = np.sqrt(np.clip(np.diag(cov), 1e-8, None))
+# 1) residuals
+delta = rng.normal(0.0, 0.1, size=bins).astype("float32")
+
+# 2) covariance with diag matching var(delta)
+var = float(delta.var())  # sample variance
+# small symmetric noise on top of diagonal var
+eps = 1e-3 * var
+A = rng.normal(0.0, eps, size=(bins, bins)).astype("float32")
+S = (A + A.T) / 2.0
+cov = (np.eye(bins, dtype="float32") * var) + S
+
+# enforce positive-definite
+w, V = np.linalg.eigh(cov)
+w = np.clip(w, 1e-6 * var, None).astype("float32")
+cov = (V * w) @ V.T  # V @ diag(w) @ V.T
+
+# 3) z-scores
+std = np.sqrt(np.clip(np.diag(cov), 1e-12, None))
 z = (delta / std).astype("float32")
 
+# 4) write artifacts
 os.makedirs("artifacts", exist_ok=True)
 np.save("artifacts/delta.npy", delta)
 np.save("artifacts/cov_delta.npy", cov)
