@@ -64,5 +64,7 @@ jobs:
           micromamba run -n comet pytest -q -m "not local"
 
       - name: CLI smoke
+        env:
+          COMET_ALLOW_DIRTY: "1"
         run: |
           micromamba run -n comet python -m comet.cli demo
