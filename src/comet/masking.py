@@ -94,7 +94,12 @@ def _healpy_apodization(mask: np.ndarray, apod_arcmin: float) -> np.ndarray:
     hp.npix2nside(npix)
     fwhm_rad = float(apod_arcmin) * math.pi / (60.0 * 180.0)
     fwhm_rad *= math.sqrt(8.0 * math.log(2.0))
-    smoothed = hp.smoothing(mask, fwhm=fwhm_rad, verbose=False)
+    import warnings
+
+    warning_cls = getattr(hp, "HealpyDeprecationWarning", Warning)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=warning_cls)
+        smoothed = hp.smoothing(mask, fwhm=fwhm_rad, verbose=False)
     apodized = np.clip(np.asarray(smoothed, dtype=float), 0.0, 1.0)
     apodized = np.ascontiguousarray(apodized * (mask > 0.0), dtype=float)
     return apodized
