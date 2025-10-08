@@ -14,9 +14,9 @@
 - [x] Tests for FITS header parsing and unit sanity checks
 
 ### Phase 2 — Masking, Apodization, and Binning
-- [ ] Extend `commutator_common.build_mask`  
-- [ ] Create `scripts/make_mask.py`  
-- [ ] Tests: f_sky within [0.5, 0.9], bin count matches config  
+- [x] Extend `commutator_common.build_mask`
+- [x] Create `scripts/make_mask.py`
+- [x] Tests: f_sky within [0.5, 0.9], bin count matches config
 
 ### Phase 3 — Spectra Deconvolution & Windows
 - [ ] Implement `namaster_utils.py` helpers  

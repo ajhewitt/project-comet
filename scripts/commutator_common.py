@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import healpy as hp
 import numpy as np
 import pymaster as nmt
+
+from comet.config import load_prereg
+from comet.masking import build_mask as _build_mask
+from comet.masking import effective_f_sky as _effective_f_sky
 
 
 @dataclass
@@ -31,24 +37,68 @@ def read_map(path: Path, quick_nside: int | None = None) -> np.ndarray:
     return m
 
 
-def build_mask(m: np.ndarray, threshold_sigma: float = 10.0) -> np.ndarray:
-    x = np.asarray(m, dtype=float)
-    finite = np.isfinite(x)
-    x = np.where(finite, x, 0.0)
-    rms = float(np.sqrt(np.mean(x**2)))
-    mask = finite & (np.abs(x) < threshold_sigma * (rms + 1e-30))
-    return mask.astype(float)
+def build_mask(
+    m: np.ndarray,
+    threshold_sigma: float = 10.0,
+    apod_arcmin: float | None = None,
+) -> np.ndarray:
+    return _build_mask(m, threshold_sigma=threshold_sigma, apod_arcmin=apod_arcmin)
 
 
-def nm_bins_from_params(nside: int, lmax: int | None = None, nlb: int = 50) -> nmt.NmtBin:
+def effective_f_sky(mask: np.ndarray) -> float:
+    return _effective_f_sky(mask)
+
+
+def nm_bins_from_params(
+    nside: int,
+    lmax: int | None = None,
+    nlb: int = 50,
+    lmin: int | None = None,
+) -> nmt.NmtBin:
     """
     Construct simple linear-ℓ binning based on map nside using NaMaster's helper.
     Uses NmtBin.from_nside_linear, which chooses lmax ~ 3*nside-1 internally.
     """
     if nlb <= 0:
         raise ValueError("nlb must be positive")
-    # from_nside_linear ignores lmax; it sets binning according to nside and nlb.
-    return nmt.NmtBin.from_nside_linear(nside=nside, nlb=nlb)
+    kwargs: dict[str, Any] = {"nside": nside, "nlb": nlb}
+    if lmin is not None:
+        if lmin < 0:
+            raise ValueError("lmin must be non-negative")
+        kwargs["lmin"] = int(lmin)
+    if lmax is not None:
+        if lmax <= 0:
+            raise ValueError("lmax must be positive")
+        kwargs["lmax"] = int(lmax)
+    return nmt.NmtBin.from_nside_linear(**kwargs)
+
+
+def nm_bins_from_config(nside: int, bins_cfg: Mapping[str, Any]) -> nmt.NmtBin:
+    """Create NaMaster bins from a preregistration ``bins`` configuration block."""
+
+    if "nlb" not in bins_cfg:
+        raise KeyError("bins configuration requires 'nlb'")
+
+    nlb = int(bins_cfg["nlb"])
+    lmin = bins_cfg.get("lmin")
+    lmax = bins_cfg.get("lmax")
+    return nm_bins_from_params(
+        nside=nside,
+        nlb=nlb,
+        lmin=None if lmin is None else int(lmin),
+        lmax=None if lmax is None else int(lmax),
+    )
+
+
+def load_bins_from_prereg(prereg_path: Path, nside: int) -> tuple[nmt.NmtBin, Mapping[str, Any]]:
+    """Load the prereg YAML and construct NaMaster bins from its ``ells.bins`` block."""
+
+    prereg = load_prereg(prereg_path)
+    bins_cfg = prereg.get("ells", {}).get("bins")
+    if bins_cfg is None:
+        raise KeyError("prereg configuration is missing 'ells.bins'")
+    bins = nm_bins_from_config(nside=nside, bins_cfg=bins_cfg)
+    return bins, bins_cfg
 
 
 def nm_field_from_scalar(m: np.ndarray, mask: np.ndarray) -> nmt.NmtField:
