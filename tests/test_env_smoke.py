@@ -6,6 +6,8 @@ import importlib.util
 import pytest
 
 _REQUIRED = ("numpy", "astropy.io.fits", "healpy", "pymaster")
+
+
 def _is_missing(name: str) -> bool:
     try:
         return importlib.util.find_spec(name) is None
