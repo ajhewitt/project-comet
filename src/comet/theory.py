@@ -21,7 +21,13 @@ class TheoryCls:
     def as_synalm_array(self) -> list[np.ndarray]:
         """Return spectra ordered for :func:`healpy.synalm`."""
 
-        return [self.cl_tt, self.cl_tk, self.cl_kk]
+        # ``healpy.synalm`` expects the spectra describing two correlated
+        # scalar fields in the order (auto_1, auto_2, cross_12).  Returning the
+        # cross-spectrum in the middle accidentally permutes the underlying
+        # covariance and can produce non-physical draws or NaNs when the helper
+        # consumes these spectra.  Keep the autos first so that the covariance
+        # fed into ``synalm`` remains positive definite.
+        return [self.cl_tt, self.cl_kk, self.cl_tk]
 
     @property
     def lmax(self) -> int:
