@@ -11,10 +11,10 @@ pytest.importorskip("pymaster", reason="mask tests require pymaster")
 
 import healpy as hp
 import numpy as np
-from commutator_common import nm_bins_from_config
 
 from comet.config import load_prereg
 from comet.masking import build_mask, effective_f_sky
+from commutator_common import nm_bins_from_config
 
 
 def test_build_mask_f_sky_within_expected_range():

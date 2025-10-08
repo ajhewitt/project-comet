@@ -6,6 +6,7 @@ from pathlib import Path
 
 import healpy as hp
 import numpy as np
+
 from commutator_common import (
     build_mask,
     nm_bandpowers,
