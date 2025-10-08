@@ -8,8 +8,10 @@ import healpy as hp
 import numpy as np
 
 from commutator_common import (
+    WindowConfig,
     build_mask,
     load_bins_from_prereg,
+    load_windows_from_prereg,
     nm_bandpowers,
     nm_bins_from_params,
     nm_field_from_scalar,
@@ -60,6 +62,7 @@ def main():
 
     bins = None
     bins_meta = None
+    windows_cfg: WindowConfig | None = None
     try:
         bins, bins_meta = load_bins_from_prereg(args.prereg, nside=nside)
     except FileNotFoundError:
@@ -75,9 +78,23 @@ def main():
             nlb=args.nlb,
         )
 
+    try:
+        windows_cfg = load_windows_from_prereg(args.prereg)
+    except FileNotFoundError:
+        pass
+    except Exception as exc:  # pragma: no cover
+        summary_line(f"failed to load window config: {exc}; using defaults")
+        windows_cfg = None
+
     f1 = nm_field_from_scalar(phi, mask)
     f2 = nm_field_from_scalar(cmb, mask)
-    cl = nm_bandpowers(f1, f2, bins)
+    cl = nm_bandpowers(
+        f1,
+        f2,
+        bins,
+        window_config=windows_cfg,
+        field_names=("phi", "cmb"),
+    )
 
     np.savez(Path(args.out), cl=cl, nside=nside, nlb=args.nlb)
     save_json(
@@ -89,6 +106,7 @@ def main():
             "mask_apod_arcmin": args.apod_arcmin,
             "bins_source": "prereg" if bins_meta is not None else "cli",
             "bins": bins_meta,
+            "windows": windows_cfg.to_metadata() if windows_cfg is not None else None,
         },
         Path(args.out).with_suffix(".json"),
     )
