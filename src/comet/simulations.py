@@ -53,7 +53,7 @@ def draw_correlated_maps(
 
     hp = _require_healpy()
     truncated = theory.truncate(lmax)
-    cls = truncated.as_synalm_array()
+    cls = truncated.as_synalm_array(lmax=lmax)
     seed = int(rng.integers(0, np.iinfo(np.uint32).max, dtype=np.uint32))
     legacy_state = np.random.get_state()
     try:

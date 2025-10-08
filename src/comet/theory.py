@@ -18,8 +18,19 @@ class TheoryCls:
     cl_kk: np.ndarray
     cl_tk: np.ndarray
 
-    def as_synalm_array(self) -> list[np.ndarray]:
-        """Return spectra ordered for :func:`healpy.synalm`."""
+    def as_synalm_array(self, *, lmax: int | None = None) -> list[np.ndarray]:
+        """Return spectra ordered for :func:`healpy.synalm`.
+
+        Parameters
+        ----------
+        lmax
+            When provided, expand the spectra to cover every multipole from
+            zero through ``lmax``.  ``healpy.synalm`` indexes C_ℓ arrays by the
+            implicit multipole index, so eliding the low-ℓ entries would shift
+            all spectra and corrupt the covariance used to draw correlated
+            maps.  Missing multipoles are padded with zeros so callers can
+            safely provide theory spectra defined only above a minimum ℓ.
+        """
 
         # ``healpy.synalm`` expects the spectra describing two correlated
         # scalar fields in the order (auto_1, auto_2, cross_12).  Returning the
@@ -27,7 +38,28 @@ class TheoryCls:
         # covariance and can produce non-physical draws or NaNs when the helper
         # consumes these spectra.  Keep the autos first so that the covariance
         # fed into ``synalm`` remains positive definite.
-        return [self.cl_tt, self.cl_kk, self.cl_tk]
+        spectra = (self.cl_tt, self.cl_kk, self.cl_tk)
+
+        if lmax is None:
+            return [np.asarray(spec, dtype=float) for spec in spectra]
+
+        if lmax < 0:
+            raise ValueError("lmax must be non-negative")
+
+        ell = np.asarray(self.ell, dtype=int)
+        if np.any(ell < 0):
+            raise ValueError("multipoles must be non-negative")
+        if ell.size == 0:
+            return [np.zeros(lmax + 1, dtype=float) for _ in spectra]
+        if np.any(ell > lmax):
+            raise ValueError("spectra contain multipoles above requested lmax")
+
+        padded = []
+        for spec in spectra:
+            full = np.zeros(lmax + 1, dtype=float)
+            full[ell] = spec
+            padded.append(full)
+        return padded
 
     @property
     def lmax(self) -> int:

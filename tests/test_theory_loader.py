@@ -68,3 +68,23 @@ def test_theory_truncate_requires_overlap(tmp_path: Path):
     theory = load_theory(tmp_path / "shifted.npz")
     with pytest.raises(ValueError):
         theory.truncate(2)
+
+
+@pytest.mark.unit
+def test_as_synalm_array_pads_missing_low_ell():
+    ell = np.arange(2, 5)
+    theory = TheoryCls(
+        ell=ell,
+        cl_tt=np.full_like(ell, 1e-9, dtype=float),
+        cl_kk=np.full_like(ell, 2e-9, dtype=float),
+        cl_tk=np.full_like(ell, 5e-10, dtype=float),
+    )
+
+    autos_tt, autos_kk, cross = theory.as_synalm_array(lmax=6)
+
+    assert autos_tt.shape == (7,)
+    assert np.allclose(autos_tt[:2], 0.0)
+    assert np.allclose(autos_tt[ell], theory.cl_tt)
+    assert autos_kk.shape == (7,)
+    assert cross.shape == (7,)
+    assert np.allclose(cross[ell], theory.cl_tk)
