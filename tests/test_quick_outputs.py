@@ -2,6 +2,10 @@ import os
 import subprocess
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip("numpy", reason="quick outputs require numpy")
+
 import numpy as np
 
 

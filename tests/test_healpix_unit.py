@@ -1,6 +1,10 @@
+import pytest
+
+pytest.importorskip("numpy", reason="healpix round-trip tests require numpy")
+pytest.importorskip("healpy", reason="healpix round-trip tests require healpy")
+
 import healpy as hp
 import numpy as np
-import pytest
 
 
 @pytest.mark.unit
