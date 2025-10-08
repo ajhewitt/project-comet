@@ -98,9 +98,7 @@ def evaluate_null_tests(delta: np.ndarray, covariance: np.ndarray) -> dict[str, 
     def _record(name: str, residual: np.ndarray) -> None:
         arr = np.asarray(residual, dtype=float)
         if arr.shape != data.shape:
-            raise ValueError(
-                f"Residual for {name} has shape {arr.shape}, expected {data.shape}"
-            )
+            raise ValueError(f"Residual for {name} has shape {arr.shape}, expected {data.shape}")
         z_val = float(z_score(arr, cov))
         results[name] = NullTestResult(name=name, residual=arr.astype(float), z=z_val)
 
