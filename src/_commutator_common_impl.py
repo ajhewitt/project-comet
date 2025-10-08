@@ -99,9 +99,7 @@ def nm_bins_from_params(
         # constructing explicit edges that honour the requested lower bound.
         from_edges = getattr(nmt.NmtBin, "from_edges", None)
         if from_edges is None:
-            raise RuntimeError(
-                "NaMaster does not expose NmtBin.from_edges; cannot enforce lmin"
-            )
+            raise RuntimeError("NaMaster does not expose NmtBin.from_edges; cannot enforce lmin")
         if lmax_val is None:
             lmax_val = 3 * nside - 1
         ell_min = np.arange(lmin_val, lmax_val + 1, nlb, dtype=int)
