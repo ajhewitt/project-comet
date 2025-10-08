@@ -2,15 +2,32 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
+_NMT_IMPORT_ERROR: Exception | None = None
+
 try:  # pragma: no cover - optional dependency in CI
-    import pymaster as nmt
-except Exception as exc:  # pragma: no cover
-    raise RuntimeError(
-        "pymaster (NaMaster) is required for mask apodization. "
-        "Install it from conda-forge as 'namaster'."
-    ) from exc
+    import pymaster as _nmt
+except ModuleNotFoundError as exc:  # pragma: no cover - handled lazily in helpers
+    _nmt = None
+    _NMT_IMPORT_ERROR = exc
+except Exception as exc:  # pragma: no cover - propagate unexpected import failures
+    _nmt = None
+    _NMT_IMPORT_ERROR = exc
+else:  # pragma: no cover
+    _NMT_IMPORT_ERROR = None
+
+def _require_nmt() -> Any:  # pragma: no cover - exercised only with dependency installed
+    if _nmt is None:
+        if isinstance(_NMT_IMPORT_ERROR, ModuleNotFoundError):
+            raise ModuleNotFoundError(
+                "pymaster (NaMaster) is required for mask apodization. "
+                "Install it from conda-forge as 'namaster'."
+            ) from _NMT_IMPORT_ERROR
+        raise RuntimeError("Failed to import pymaster") from _NMT_IMPORT_ERROR
+    return _nmt
 
 
 def _as_float_array(mask: np.ndarray) -> np.ndarray:
@@ -46,13 +63,17 @@ def threshold_mask(m: np.ndarray, threshold_sigma: float = 10.0) -> np.ndarray:
 def apodize_mask(mask: np.ndarray, apod_arcmin: float | None = None) -> np.ndarray:
     """Apply NaMaster C1 apodization with the requested radius (in arcminutes)."""
 
-    arr = _as_float_array(mask)
+    arr = np.ascontiguousarray(_as_float_array(mask), dtype=float)
     if apod_arcmin is None or apod_arcmin <= 0:
         return arr
 
+    if not np.any(arr > 0.0):
+        return arr
+
+    nmt = _require_nmt()
     aporad_deg = float(apod_arcmin) / 60.0
     apodized = nmt.mask_apodization(arr, aporad_deg, apotype="C1")
-    apodized = np.clip(apodized, 0.0, 1.0)
+    apodized = np.clip(np.ascontiguousarray(apodized, dtype=float), 0.0, 1.0)
     apodized = apodized * (arr > 0)
     return apodized
 
