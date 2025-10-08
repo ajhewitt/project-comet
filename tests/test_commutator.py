@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import pytest
+
+pytest.importorskip("numpy", reason="commutator tests require numpy")
+
 import numpy as np
 
 from comet.commutator import commutator, z_score

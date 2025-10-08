@@ -6,3 +6,4 @@ lint:
 	micromamba run -n comet ruff check .
 fix:
 	micromamba run -n comet ruff format .
+	micromamba run -n comet ruff check . --fix

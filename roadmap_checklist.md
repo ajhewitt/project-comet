@@ -8,10 +8,10 @@
 - [ ] Confirm quick pipeline produces Δ, Cov, Z at nside=256  
 
 ### Phase 1 — Data Ingestion & Units Sanity
-- [ ] Implement `io_maps.read_fits_map_with_meta`  
-- [ ] Write metadata JSON per input map  
-- [ ] Add `scripts/check_data.py` for header validation  
-- [ ] Tests for FITS header parsing and unit sanity checks  
+- [x] Implement `io_maps.read_fits_map_with_meta`
+- [x] Write metadata JSON per input map
+- [x] Add `scripts/check_data.py` for header validation
+- [x] Tests for FITS header parsing and unit sanity checks
 
 ### Phase 2 — Masking, Apodization, and Binning
 - [ ] Extend `commutator_common.build_mask`  

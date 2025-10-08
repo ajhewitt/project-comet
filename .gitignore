@@ -1,18 +1,3 @@
-# Python cruft
-__pycache__/
-*.py[cod]
-*.pyo
-
-# Packaging cruft
-*.egg-info/
-dist/
-build/
-
-# Virtual envs and local package managers
-.venv/
-.env/
-.micromamba/
-
 # Test cache
 .pytest_cache/
 
@@ -39,3 +24,37 @@ docs/figures/
 *.png
 *.pdf
 *.svg
+
+# Python virtual environments
+.env
+.venv
+.venv_quick
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# PyCharm / VSCode virtualenv settings (sometimes people get “creative”)
+.idea/
+.vscode/
+
+# Common Python cache junk
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# If you use pipenv, poetry, or similar
+*.lock
+*.pdm.toml
+*.pdm-python
+*.pdm.lock
+*.poetry.toml
+poetry.lock
+Pipfile.lock

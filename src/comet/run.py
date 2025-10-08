@@ -7,7 +7,10 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-import yaml
+try:  # pragma: no cover - optional dependency in CI
+    import yaml
+except ModuleNotFoundError:  # pragma: no cover - exercised when PyYAML absent
+    yaml = None  # type: ignore[assignment]
 
 from .config import get_data_dir
 
@@ -32,6 +35,8 @@ def _read_yaml(p: str | Path | None) -> dict:
         return {}
     pth = Path(p)
     if not pth.exists():
+        return {}
+    if yaml is None:
         return {}
     with pth.open() as f:
         return yaml.safe_load(f) or {}

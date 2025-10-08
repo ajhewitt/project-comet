@@ -3,10 +3,19 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import yaml
+try:  # pragma: no cover - optional dependency in CI
+    import yaml
+except ModuleNotFoundError:  # pragma: no cover
+    yaml = None  # type: ignore[assignment]
 
 
 def load_prereg(path: str | os.PathLike) -> dict:
+    if yaml is None:
+        msg = (
+            "PyYAML is required to load preregistration files; install the optional "
+            "'config' dependencies to enable this feature"
+        )
+        raise ModuleNotFoundError(msg)
     with open(path) as f:
         return yaml.safe_load(f)
 
