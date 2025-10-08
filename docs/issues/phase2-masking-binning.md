@@ -6,9 +6,9 @@ tags:
   - binning
 status: done
 issues:
-  - 7
-  - 8
-  - 9
+  - #7
+  - #8
+  - #9
 ---
 
 ## Tasks
