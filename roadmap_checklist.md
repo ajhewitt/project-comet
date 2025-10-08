@@ -35,9 +35,9 @@
 - [x] Tests: covariance is positive-definite
 
 ### Phase 6 — Real T×κ Science Product
-- [ ] Implement `compute_cross_spectrum.py`  
-- [ ] Extend `summarize_results.py` with Δ/σ reporting  
-- [ ] Tests: injected signal recovery  
+- [x] Implement `compute_cross_spectrum.py`
+- [x] Extend `summarize_results.py` with Δ/σ reporting
+- [x] Tests: injected signal recovery
 
 ### Phase 7 — Reproducibility & Sanity Locks
 - [ ] Lock units (K_CMB, dimensionless κ)  
