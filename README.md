@@ -54,7 +54,32 @@ micromamba run -n comet pip install -e ".[dev]"
 ./bin/ci
 ```
 
-### 3. Run pipeline
+### 3. Stage the Planck maps
+
+Download the Planck SMICA temperature and lensing convergence maps and place
+them in the repository's `data/` directory:
+
+```
+project-comet/
+└── data/
+    ├── COM_CompMap_CMB-smica_2048_R1.20.fits
+    └── COM_CompMap_Lensing_2048_R1.10.fits
+```
+
+If you keep the maps somewhere else, point the pipeline at that directory by
+setting `COMET_DATA_DIR` before running the CLI:
+
+```bash
+export COMET_DATA_DIR=/path/to/planck/maps
+```
+
+You can confirm that the data are discoverable with the helper command:
+
+```bash
+micromamba run -n comet python -m comet.cli data --list
+```
+
+### 4. Run pipeline
 ```bash
 ./bin/comet-run
 cat artifacts/summary.json

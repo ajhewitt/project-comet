@@ -1,3 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-COMET_ALLOW_DIRTY=1 micromamba run -n comet python -m comet.cli run   --ordering both   --prereg config/prereg.yaml   --paths config/paths.example.yaml   --out artifacts/summary.json
+COMET_ALLOW_DIRTY=1 micromamba run -n comet python -m comet.cli run \
+  --ordering both \
+  --prereg config/prereg.yaml \
+  --paths config/paths.yaml \
+  --out artifacts/summary.json
