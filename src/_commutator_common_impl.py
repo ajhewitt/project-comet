@@ -239,6 +239,8 @@ def save_npy(arr: np.ndarray, path: Path) -> None:
 
 def summary_line(msg: str) -> None:
     print(json.dumps({"msg": msg}))
+
+
 def _require_numpy() -> Any:
     module = globals().get("np")
     if module is None:  # pragma: no cover - exercised when dependency missing
@@ -258,5 +260,3 @@ def _require_masking() -> tuple[Any, Any]:
             "numpy is required for masking helpers. Install it from conda-forge as 'numpy'."
         ) from error
     return build, eff
-
-

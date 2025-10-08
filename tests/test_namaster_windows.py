@@ -64,10 +64,7 @@ def test_apply_window_corrections_combines_all_windows() -> None:
     total_response = [
         max(
             1e-12,
-            pixel_windows[0][i]
-            * pixel_windows[1][i]
-            * beam_windows[0][i]
-            * beam_windows[1][i],
+            pixel_windows[0][i] * pixel_windows[1][i] * beam_windows[0][i] * beam_windows[1][i],
         )
         for i in range(len(ells))
     ]
