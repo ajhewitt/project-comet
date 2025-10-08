@@ -4,3 +4,10 @@ frequency: {T: SMICA}
 splits: {held_out: HM_B, use: [HM_A]}
 multiplicity: {method: FDR, q: 0.1, K: 1}
 context_sign_prediction: +1
+windows:
+  pixel: {apply: true}
+  beam:
+    deconvolve: false
+    fwhm_arcmin:
+      cmb: 5.0
+      phi: 5.0

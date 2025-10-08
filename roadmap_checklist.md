@@ -19,9 +19,9 @@
 - [x] Tests: f_sky within [0.5, 0.9], bin count matches config
 
 ### Phase 3 — Spectra Deconvolution & Windows
-- [ ] Implement `namaster_utils.py` helpers  
-- [ ] Config toggles for beam/pixel deconvolution  
-- [ ] Tests: on/off toggle shifts high-ℓ tail  
+- [x] Implement `namaster_utils.py` helpers
+- [x] Config toggles for beam/pixel deconvolution
+- [x] Tests: on/off toggle shifts high-ℓ tail
 
 ### Phase 4 — Null Tests
 - [ ] Add `scripts/run_null_variants.py`  

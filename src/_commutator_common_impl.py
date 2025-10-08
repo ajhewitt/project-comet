@@ -13,16 +13,21 @@ import pymaster as nmt
 from comet.config import load_prereg
 from comet.masking import build_mask as _build_mask
 from comet.masking import effective_f_sky as _effective_f_sky
+from comet.namaster_utils import WindowConfig, parse_window_config
+from comet.namaster_utils import bandpowers as _bandpowers
+from comet.namaster_utils import field_from_map as _field_from_map
 
 __all__ = [
     "MapBundle",
     "build_mask",
     "effective_f_sky",
     "load_bins_from_prereg",
+    "load_windows_from_prereg",
     "nm_bandpowers",
     "nm_bins_from_config",
     "nm_bins_from_params",
     "nm_field_from_scalar",
+    "WindowConfig",
     "read_map",
     "save_json",
     "save_npy",
@@ -135,17 +140,27 @@ def load_bins_from_prereg(prereg_path: Path, nside: int) -> tuple[nmt.NmtBin, Ma
     return bins, bins_cfg
 
 
+def load_windows_from_prereg(prereg_path: Path) -> WindowConfig:
+    """Load window/deconvolution settings from the preregistration YAML."""
+
+    prereg = load_prereg(prereg_path)
+    windows_cfg = prereg.get("windows") if isinstance(prereg, Mapping) else None
+    return parse_window_config(windows_cfg)
+
+
 def nm_field_from_scalar(m: np.ndarray, mask: np.ndarray) -> nmt.NmtField:
-    return nmt.NmtField(mask, [m])
+    return _field_from_map(m, mask)
 
 
-def nm_bandpowers(f1: nmt.NmtField, f2: nmt.NmtField, b: nmt.NmtBin) -> np.ndarray:
-    w = nmt.NmtWorkspace()
-    w.compute_coupling_matrix(f1, f2, b)
-    cl_coupled = nmt.compute_coupled_cell(f1, f2)
-    cl_decoupled = w.decouple_cell(cl_coupled)
-    # Return the scalar spectrum (index 0)
-    return cl_decoupled[0]
+def nm_bandpowers(
+    f1: nmt.NmtField,
+    f2: nmt.NmtField,
+    b: nmt.NmtBin,
+    *,
+    window_config: WindowConfig | None = None,
+    field_names: tuple[str, str] = ("field_1", "field_2"),
+) -> np.ndarray:
+    return _bandpowers(f1, f2, b, window_config=window_config, field_names=field_names)
 
 
 def save_json(obj, path: Path) -> None:
