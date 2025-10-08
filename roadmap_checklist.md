@@ -29,10 +29,10 @@
 - [x] Tests: synthetic skies → Z ≈ 0
 
 ### Phase 5 — Simulations with Theory Cℓ
-- [ ] Add `scripts/theory.py` loader  
-- [ ] Extend `run_null_sims.py` with Gaussian alm generator  
-- [ ] Run nsims ≈ 2000 offline  
-- [ ] Tests: covariance is positive-definite  
+- [x] Add `scripts/theory.py` loader
+- [x] Extend `run_null_sims.py` with Gaussian alm generator
+- [ ] Run nsims ≈ 2000 offline
+- [x] Tests: covariance is positive-definite
 
 ### Phase 6 — Real T×κ Science Product
 - [ ] Implement `compute_cross_spectrum.py`  
