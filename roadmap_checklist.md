@@ -24,9 +24,9 @@
 - [x] Tests: on/off toggle shifts high-ℓ tail
 
 ### Phase 4 — Null Tests
-- [ ] Add `scripts/run_null_variants.py`  
-- [ ] Implement: rotation, hemisphere jackknife, curl/null field  
-- [ ] Tests: synthetic skies → Z ≈ 0  
+- [x] Add `scripts/run_null_variants.py`
+- [x] Implement: rotation, hemisphere jackknife, curl/null field
+- [x] Tests: synthetic skies → Z ≈ 0
 
 ### Phase 5 — Simulations with Theory Cℓ
 - [ ] Add `scripts/theory.py` loader  
