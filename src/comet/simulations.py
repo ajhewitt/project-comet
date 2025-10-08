@@ -62,8 +62,8 @@ def draw_correlated_maps(
     finally:
         np.random.set_state(legacy_state)
 
-    t_map = hp.alm2map(alms[0], nside=nside, lmax=lmax, verbose=False)
-    k_map = hp.alm2map(alms[1], nside=nside, lmax=lmax, verbose=False)
+    t_map = hp.alm2map(alms[0], nside=nside, lmax=lmax)
+    k_map = hp.alm2map(alms[1], nside=nside, lmax=lmax)
     return np.asarray(t_map, dtype=float), np.asarray(k_map, dtype=float)
 
 
