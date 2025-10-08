@@ -190,10 +190,10 @@ def main(argv: Iterable[str] | None = None) -> int:
         delta=delta,
         sigma=sigma,
         z=z,
-        order_a=args.order_a,
-        order_b=args.order_b,
+        order_a=str(args.order_a),
+        order_b=str(args.order_b),
         theory=args.theory.as_posix(),
-        cov=args.cov if cov_path.exists() else None,
+        cov=args.cov.as_posix() if cov_path.exists() else None,
     )
 
     args.summary.parent.mkdir(parents=True, exist_ok=True)
@@ -202,10 +202,10 @@ def main(argv: Iterable[str] | None = None) -> int:
         "mean_abs_z": float(np.mean(np.abs(z))) if z.size else 0.0,
         "max_abs_z": float(np.max(np.abs(z))) if z.size else 0.0,
         "inputs": {
-            "order_a": args.order_a,
-            "order_b": args.order_b,
+            "order_a": str(args.order_a),
+            "order_b": str(args.order_b),
             "theory": args.theory.as_posix(),
-            "cov": args.cov if cov_path.exists() else None,
+            "cov": args.cov.as_posix() if cov_path.exists() else None,
         },
         "outputs": {
             "cross": args.out.as_posix(),
