@@ -6,9 +6,15 @@ import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from functools import cache
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import numpy as np
+try:  # pragma: no cover - dependency is optional in CI
+    import numpy as np
+except ModuleNotFoundError as exc:  # pragma: no cover
+    np = None  # type: ignore[assignment]
+    _NP_ERROR = exc
+else:  # pragma: no cover
+    _NP_ERROR = None
 
 try:  # pragma: no cover - dependency is optional in CI
     import healpy as hp
@@ -19,12 +25,17 @@ else:  # pragma: no cover
     _HP_ERROR = None
 
 try:  # pragma: no cover - dependency is optional in CI
-    import pymaster as nmt  # type: ignore
+    import pymaster as _nmt
 except Exception as exc:  # pragma: no cover
-    raise RuntimeError(
-        "pymaster (NaMaster) is required for namaster_utils. "
-        "Install it from conda-forge as 'namaster'."
-    ) from exc
+    _nmt = None  # type: ignore[assignment]
+    _NMT_ERROR = exc
+else:  # pragma: no cover
+    _NMT_ERROR = None
+
+if TYPE_CHECKING:  # pragma: no cover - hints only
+    import pymaster as nmt  # type: ignore
+else:  # pragma: no cover - runtime attribute filled via _require_nmt
+    nmt = _nmt  # type: ignore[assignment]
 
 
 def _require_healpy() -> Any:
@@ -39,75 +50,132 @@ def _require_healpy() -> Any:
     return hp
 
 
-def _as_1d_array(values: Sequence[float] | np.ndarray) -> np.ndarray:
-    arr = np.asarray(values, dtype=float)
-    if arr.ndim != 1:
-        raise ValueError(f"Expected 1-D array, received shape {arr.shape}")
-    return arr
+def _require_nmt() -> Any:
+    module = globals().get("_nmt")
+    if module is None:  # pragma: no cover - exercised when dependency missing
+        error = globals().get("_NMT_ERROR")
+        raise RuntimeError(
+            "pymaster (NaMaster) is required for NaMaster bandpower helpers. "
+            "Install it from conda-forge as 'namaster'."
+        ) from error
+    return module
+
+
+def _require_numpy() -> Any:
+    module = globals().get("np")
+    if module is None:  # pragma: no cover - exercised when dependency missing
+        error = globals().get("_NP_ERROR")
+        raise ModuleNotFoundError(
+            "numpy is required for NaMaster helpers. Install it from conda-forge as 'numpy'."
+        ) from error
+    return module
+
+
+def _as_1d_array(values: Sequence[float] | Any) -> list[float]:
+    if np is not None:
+        arr = np.asarray(values, dtype=float)
+        if arr.ndim != 1:
+            raise ValueError(f"Expected 1-D array, received shape {arr.shape}")
+        return arr.astype(float).tolist()
+    if isinstance(values, Sequence) and not isinstance(values, (str, bytes)):
+        out: list[float] = []
+        for item in values:
+            if isinstance(item, Sequence) and not isinstance(item, (str, bytes)):
+                raise ValueError("Expected 1-D sequence")
+            out.append(float(item))
+        return out
+    return [float(values)]
 
 
 @cache
-def pixel_window(nside: int, lmax: int | None = None) -> np.ndarray:
+def pixel_window(nside: int, lmax: int | None = None) -> np.ndarray | list[float]:
     """Return the scalar HEALPix pixel window function for ``nside`` up to ``lmax``."""
 
     if nside <= 0:
         raise ValueError("nside must be positive")
+    numpy = _require_numpy()
     healpy = _require_healpy()
     window = healpy.sphtfunc.pixwin(nside, pol=False, lmax=lmax)
-    return np.asarray(window, dtype=float)
+    return numpy.asarray(window, dtype=float)
 
 
 @cache
-def gaussian_beam_window(fwhm_arcmin: float, lmax: int) -> np.ndarray:
+def gaussian_beam_window(fwhm_arcmin: float, lmax: int) -> np.ndarray | list[float]:
     """Return a Gaussian beam transfer function sampled up to ``lmax``."""
 
     if lmax <= 0:
         raise ValueError("lmax must be positive")
     if fwhm_arcmin <= 0.0:
         raise ValueError("fwhm_arcmin must be positive")
-    healpy = _require_healpy()
-    fwhm_rad = math.radians(float(fwhm_arcmin) / 60.0)
-    window = healpy.gauss_beam(fwhm=fwhm_rad, lmax=lmax)
-    return np.asarray(window, dtype=float)
+    sigma = math.radians(float(fwhm_arcmin) / 60.0) / math.sqrt(8.0 * math.log(2.0))
+    values = [math.exp(-0.5 * ell * (ell + 1.0) * sigma**2) for ell in range(lmax + 1)]
+    if np is not None:
+        return np.asarray(values, dtype=float)
+    return values
 
 
-def _window_response(window: np.ndarray | None, ells: np.ndarray) -> np.ndarray:
+def _window_response(window: Sequence[float] | None, ells: Sequence[float]) -> list[float]:
     if window is None:
-        return np.ones_like(ells, dtype=float)
-    base_ell = np.arange(window.size, dtype=float)
-    response = np.interp(ells, base_ell, window, left=window[0], right=window[-1])
-    return response
+        return [1.0 for _ in ells]
+    samples = _as_1d_array(window)
+    if not samples:
+        return [1.0 for _ in ells]
+    base = [float(i) for i in range(len(samples))]
+    left = samples[0]
+    right = samples[-1]
+
+    def _interp(x: float) -> float:
+        if x <= base[0]:
+            return left
+        if x >= base[-1]:
+            return right
+        for idx in range(1, len(base)):
+            if x <= base[idx]:
+                x0 = base[idx - 1]
+                x1 = base[idx]
+                y0 = samples[idx - 1]
+                y1 = samples[idx]
+                if x1 == x0:
+                    return y1
+                t = (x - x0) / (x1 - x0)
+                return y0 + t * (y1 - y0)
+        return right
+
+    return [_interp(float(val)) for val in ells]
 
 
 def apply_window_corrections(
-    cl: Sequence[float] | np.ndarray,
-    ells: Sequence[float] | np.ndarray,
+    cl: Sequence[float] | Any,
+    ells: Sequence[float] | Any,
     *,
-    pixel_windows: tuple[np.ndarray | None, np.ndarray | None] | None = None,
-    beam_windows: tuple[np.ndarray | None, np.ndarray | None] | None = None,
+    pixel_windows: tuple[Sequence[float] | None, Sequence[float] | None] | None = None,
+    beam_windows: tuple[Sequence[float] | None, Sequence[float] | None] | None = None,
     eps: float = 1e-12,
-) -> np.ndarray:
+) -> list[float] | np.ndarray:
     """Deconvolve the provided bandpowers by pixel and/or beam windows."""
 
     cl_arr = _as_1d_array(cl)
     ell_arr = _as_1d_array(ells)
-    if cl_arr.size != ell_arr.size:
+    if len(cl_arr) != len(ell_arr):
         raise ValueError("bandpowers and ell arrays must share the same length")
 
-    correction = np.ones_like(ell_arr, dtype=float)
+    correction = [1.0 for _ in ell_arr]
 
     if pixel_windows is not None:
         pw1, pw2 = pixel_windows
-        correction *= _window_response(pw1, ell_arr)
-        correction *= _window_response(pw2, ell_arr)
+        for response in (_window_response(pw1, ell_arr), _window_response(pw2, ell_arr)):
+            correction = [c * r for c, r in zip(correction, response)]
 
     if beam_windows is not None:
         bw1, bw2 = beam_windows
-        correction *= _window_response(bw1, ell_arr)
-        correction *= _window_response(bw2, ell_arr)
+        for response in (_window_response(bw1, ell_arr), _window_response(bw2, ell_arr)):
+            correction = [c * r for c, r in zip(correction, response)]
 
-    correction = np.clip(correction, eps, None)
-    return cl_arr / correction
+    safe_correction = [max(c, eps) for c in correction]
+    result = [val / corr for val, corr in zip(cl_arr, safe_correction)]
+    if np is not None:
+        return np.asarray(result, dtype=float)
+    return result
 
 
 @dataclass(frozen=True)
@@ -199,15 +267,18 @@ def make_bins(lmax: int, nlb: int) -> nmt.NmtBin:
 
     if lmax <= 0 or nlb <= 0:
         raise ValueError("lmax and nlb must be positive")
-    return nmt.NmtBin.from_lmax(lmax=lmax, nlb=nlb)
+    module = _require_nmt()
+    return module.NmtBin.from_lmax(lmax=lmax, nlb=nlb)
 
 
 def field_from_map(m: np.ndarray, mask: np.ndarray | None = None) -> nmt.NmtField:
     """Build a spin-0 NaMaster field from a scalar map and an optional mask."""
 
+    numpy = _require_numpy()
     if mask is None:
-        mask = np.isfinite(m).astype(float)
-    return nmt.NmtField(mask, [m])
+        mask = numpy.isfinite(m).astype(float)
+    module = _require_nmt()
+    return module.NmtField(mask, [m])
 
 
 def bandpowers(
@@ -220,9 +291,11 @@ def bandpowers(
 ) -> np.ndarray:
     """Compute decoupled pseudo-C_ell bandpowers with optional window corrections."""
 
-    workspace = nmt.NmtWorkspace()
+    module = _require_nmt()
+    numpy = _require_numpy()
+    workspace = module.NmtWorkspace()
     workspace.compute_coupling_matrix(f1, f2, b)
-    cl_coupled = nmt.compute_coupled_cell(f1, f2)
+    cl_coupled = module.compute_coupled_cell(f1, f2)
     cl_decoupled = workspace.decouple_cell(cl_coupled)[0]
 
     if window_config is None:
@@ -233,11 +306,11 @@ def bandpowers(
     if not needs_pixel and not needs_beam:
         return cl_decoupled
 
-    ell_eff = np.asarray(b.get_effective_ells(), dtype=float)
+    ell_eff = numpy.asarray(b.get_effective_ells(), dtype=float)
     lmax = int(math.ceil(float(ell_eff.max()))) if ell_eff.size else 0
 
-    pixel_windows: tuple[np.ndarray | None, np.ndarray | None] | None = None
-    beam_windows: tuple[np.ndarray | None, np.ndarray | None] | None = None
+    pixel_windows: tuple[Sequence[float] | None, Sequence[float] | None] | None = None
+    beam_windows: tuple[Sequence[float] | None, Sequence[float] | None] | None = None
 
     def _field_nside(field: nmt.NmtField) -> int:
         nside_attr = getattr(field, "nside", None)
@@ -246,7 +319,7 @@ def bandpowers(
         mask = getattr(field, "mask", None)
         if mask is not None:
             healpy = _require_healpy()
-            return int(healpy.npix2nside(np.asarray(mask).size))
+            return int(healpy.npix2nside(numpy.asarray(mask).size))
         raise AttributeError("Could not infer nside for NaMaster field")
 
     if needs_pixel:

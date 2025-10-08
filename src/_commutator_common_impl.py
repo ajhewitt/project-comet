@@ -4,18 +4,74 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import healpy as hp
-import numpy as np
-import pymaster as nmt
+try:  # pragma: no cover - dependency is optional in CI
+    import healpy as hp
+except Exception as exc:  # pragma: no cover
+    hp = None  # type: ignore[assignment]
+    _HP_ERROR = exc
+else:  # pragma: no cover
+    _HP_ERROR = None
+
+try:  # pragma: no cover - dependency is optional in CI
+    import numpy as np
+except ModuleNotFoundError as exc:  # pragma: no cover
+    np = None  # type: ignore[assignment]
+    _NP_ERROR = exc
+else:  # pragma: no cover
+    _NP_ERROR = None
 
 from comet.config import load_prereg
-from comet.masking import build_mask as _build_mask
-from comet.masking import effective_f_sky as _effective_f_sky
+
+try:  # pragma: no cover - dependency is optional in CI
+    from comet.masking import build_mask as _build_mask
+    from comet.masking import effective_f_sky as _effective_f_sky
+except ModuleNotFoundError as exc:  # pragma: no cover
+    _build_mask = None  # type: ignore[assignment]
+    _effective_f_sky = None  # type: ignore[assignment]
+    _MASKING_ERROR = exc
+else:  # pragma: no cover
+    _MASKING_ERROR = None
 from comet.namaster_utils import WindowConfig, parse_window_config
 from comet.namaster_utils import bandpowers as _bandpowers
 from comet.namaster_utils import field_from_map as _field_from_map
+
+try:  # pragma: no cover - dependency is optional in CI
+    import pymaster as _nmt
+except Exception as exc:  # pragma: no cover
+    _nmt = None  # type: ignore[assignment]
+    _NMT_ERROR = exc
+else:  # pragma: no cover
+    _NMT_ERROR = None
+
+if TYPE_CHECKING:  # pragma: no cover - hints only
+    import pymaster as nmt  # type: ignore
+else:  # pragma: no cover - runtime attribute filled via _require_nmt
+    nmt = _nmt  # type: ignore[assignment]
+
+
+def _require_nmt() -> Any:
+    module = globals().get("_nmt")
+    if module is None:  # pragma: no cover - exercised when dependency missing
+        error = globals().get("_NMT_ERROR")
+        raise RuntimeError(
+            "pymaster (NaMaster) is required for commutator helpers. "
+            "Install it from conda-forge as 'namaster'."
+        ) from error
+    return module
+
+
+def _require_healpy() -> Any:
+    module = globals().get("hp")
+    if module is None:  # pragma: no cover - exercised when dependency missing
+        error = globals().get("_HP_ERROR")
+        raise RuntimeError(
+            "healpy is required for commutator map helpers. "
+            "Install it from conda-forge as 'healpy'."
+        ) from error
+    return module
+
 
 __all__ = [
     "MapBundle",
@@ -44,16 +100,18 @@ class MapBundle:
 
 
 def read_map(path: Path, quick_nside: int | None = None) -> np.ndarray:
-    m = hp.read_map(path.as_posix())
+    numpy = _require_numpy()
+    healpy = _require_healpy()
+    m = healpy.read_map(path.as_posix())
     if m.ndim != 1:
-        arr = np.asarray(m)
+        arr = numpy.asarray(m)
         if arr.ndim == 2 and arr.shape[0] >= 1:
             m = arr[0]
         else:
             raise ValueError(f"Unexpected FITS shape for {path}: {arr.shape}")
-    if quick_nside is not None and hp.get_nside(m) != quick_nside:
+    if quick_nside is not None and healpy.get_nside(m) != quick_nside:
         # Power = -2 for temperature-like scalar field when downgrading
-        m = hp.ud_grade(m, nside_out=quick_nside, power=-2)
+        m = healpy.ud_grade(m, nside_out=quick_nside, power=-2)
     return m
 
 
@@ -62,11 +120,13 @@ def build_mask(
     threshold_sigma: float = 10.0,
     apod_arcmin: float | None = None,
 ) -> np.ndarray:
-    return _build_mask(m, threshold_sigma=threshold_sigma, apod_arcmin=apod_arcmin)
+    build, _ = _require_masking()
+    return build(m, threshold_sigma=threshold_sigma, apod_arcmin=apod_arcmin)
 
 
 def effective_f_sky(mask: np.ndarray) -> float:
-    return _effective_f_sky(mask)
+    _, eff = _require_masking()
+    return eff(mask)
 
 
 def nm_bins_from_params(
@@ -95,20 +155,23 @@ def nm_bins_from_params(
         lmax_val = int(lmax)
         kwargs["lmax"] = lmax_val
 
+    module = _require_nmt()
+    numpy = _require_numpy()
+
     try:
-        return nmt.NmtBin.from_nside_linear(**kwargs)
+        return module.NmtBin.from_nside_linear(**kwargs)
     except TypeError:
         if lmin_val is None:
             raise
         # Older NaMaster releases do not accept lmin in from_nside_linear; fall back to
         # constructing explicit edges that honour the requested lower bound.
-        from_edges = getattr(nmt.NmtBin, "from_edges", None)
+        from_edges = getattr(module.NmtBin, "from_edges", None)
         if from_edges is None:
             raise RuntimeError("NaMaster does not expose NmtBin.from_edges; cannot enforce lmin")
         if lmax_val is None:
             lmax_val = 3 * nside - 1
-        ell_min = np.arange(lmin_val, lmax_val + 1, nlb, dtype=int)
-        ell_max = np.minimum(ell_min + nlb - 1, lmax_val)
+        ell_min = numpy.arange(lmin_val, lmax_val + 1, nlb, dtype=int)
+        ell_max = numpy.minimum(ell_min + nlb - 1, lmax_val)
         return from_edges(ell_min, ell_max)
 
 
@@ -170,8 +233,30 @@ def save_json(obj, path: Path) -> None:
 
 def save_npy(arr: np.ndarray, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    np.save(path.as_posix(), arr)
+    numpy = _require_numpy()
+    numpy.save(path.as_posix(), arr)
 
 
 def summary_line(msg: str) -> None:
     print(json.dumps({"msg": msg}))
+def _require_numpy() -> Any:
+    module = globals().get("np")
+    if module is None:  # pragma: no cover - exercised when dependency missing
+        error = globals().get("_NP_ERROR")
+        raise ModuleNotFoundError(
+            "numpy is required for commutator helpers. Install it from conda-forge as 'numpy'."
+        ) from error
+    return module
+
+
+def _require_masking() -> tuple[Any, Any]:
+    build = globals().get("_build_mask")
+    eff = globals().get("_effective_f_sky")
+    if build is None or eff is None:  # pragma: no cover - exercised when dependency missing
+        error = globals().get("_MASKING_ERROR")
+        raise ModuleNotFoundError(
+            "numpy is required for masking helpers. Install it from conda-forge as 'numpy'."
+        ) from error
+    return build, eff
+
+

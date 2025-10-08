@@ -26,3 +26,9 @@ issues:
 - **Issue #10** — Added `WindowConfig`, pixel/beam window evaluation, and configurable bandpower deconvolution helpers in `comet.namaster_utils`, fulfilling the helper expansion requirement.
 - **Issue #11** — Updated both `run_order_A_to_B.py` and `run_order_B_to_A.py` to respect preregistration window toggles, recording metadata alongside the generated spectra.
 - **Issue #12** — Introduced `tests/test_namaster_windows.py` to exercise configuration parsing and confirm that activating beam deconvolution elevates the high-ℓ bandpower tail versus the uncorrected spectrum.
+
+## Verification
+
+- `tests/test_namaster_windows.py::test_apply_window_corrections_combines_all_windows` validates the helper logic for composing beam and pixel windows (Issue #10).
+- `tests/test_namaster_windows.py::test_load_windows_from_prereg_uses_prereg_content` confirms preregistration window toggles propagate into the runtime configuration (Issue #11).
+- `tests/test_namaster_windows.py::test_beam_deconvolution_changes_high_ell_tail` locks in the expected beam deconvolution high-ℓ behaviour (Issue #12).
