@@ -77,15 +77,36 @@ def nm_bins_from_params(
     if nlb <= 0:
         raise ValueError("nlb must be positive")
     kwargs: dict[str, Any] = {"nside": nside, "nlb": nlb}
+    lmin_val: int | None = None
     if lmin is not None:
         if lmin < 0:
             raise ValueError("lmin must be non-negative")
-        kwargs["lmin"] = int(lmin)
+        lmin_val = int(lmin)
+        kwargs["lmin"] = lmin_val
+    lmax_val: int | None = None
     if lmax is not None:
         if lmax <= 0:
             raise ValueError("lmax must be positive")
-        kwargs["lmax"] = int(lmax)
-    return nmt.NmtBin.from_nside_linear(**kwargs)
+        lmax_val = int(lmax)
+        kwargs["lmax"] = lmax_val
+
+    try:
+        return nmt.NmtBin.from_nside_linear(**kwargs)
+    except TypeError:
+        if lmin_val is None:
+            raise
+        # Older NaMaster releases do not accept lmin in from_nside_linear; fall back to
+        # constructing explicit edges that honour the requested lower bound.
+        from_edges = getattr(nmt.NmtBin, "from_edges", None)
+        if from_edges is None:
+            raise RuntimeError(
+                "NaMaster does not expose NmtBin.from_edges; cannot enforce lmin"
+            )
+        if lmax_val is None:
+            lmax_val = 3 * nside - 1
+        ell_min = np.arange(lmin_val, lmax_val + 1, nlb, dtype=int)
+        ell_max = np.minimum(ell_min + nlb - 1, lmax_val)
+        return from_edges(ell_min, ell_max)
 
 
 def nm_bins_from_config(nside: int, bins_cfg: Mapping[str, Any]) -> nmt.NmtBin:
