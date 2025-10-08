@@ -7,11 +7,11 @@ from pathlib import Path
 import healpy as hp
 import numpy as np
 
+from comet.simulations import SimulationGeometry, estimate_delta_covariance
+from comet.theory import load_theory
 from commutator_common import (
     build_mask,
-    nm_bandpowers,
     nm_bins_from_params,
-    nm_field_from_scalar,
     read_map,
     save_npy,
     summary_line,
@@ -34,6 +34,7 @@ def main():
     ap.add_argument("--quick-nside", type=int, default=256)
     ap.add_argument("--nlb", type=int, default=50)
     ap.add_argument("--lmax", type=int, default=None)
+    ap.add_argument("--theory", type=Path, required=True, help="Path to theory Cl file (.npz/.txt)")
     ap.add_argument("--nsims", type=int, default=200)  # bumped for better conditioning
     ap.add_argument("--seed", type=int, default=1234)
     ap.add_argument("--out-cov", default="artifacts/cov_delta.npy")
@@ -47,28 +48,22 @@ def main():
     phi = read_map(d / args.phi, quick_nside=args.quick_nside)
     nside = hp.get_nside(cmb)
     mask = (build_mask(cmb) * build_mask(phi)).astype(float)
-    nb = nm_bins_from_params(nside=nside, lmax=args.lmax, nlb=args.nlb)
+    bins = nm_bins_from_params(nside=nside, lmax=args.lmax, nlb=args.nlb)
 
-    deltas = []
-    for _ in range(args.nsims):
-        # White Gaussian placeholders; replace with theory Cl sims when ready
-        m1 = rng.normal(0, 1e-5, size=cmb.size)
-        m2 = rng.normal(0, 1e-5, size=phi.size)
-        f1 = nm_field_from_scalar(m1, mask)
-        f2 = nm_field_from_scalar(m2, mask)
-        cl_ab = nm_bandpowers(f1, f2, nb)
-        cl_ba = nm_bandpowers(f2, f1, nb)
-        deltas.append(cl_ab - cl_ba)
+    theory = load_theory(args.theory)
+    default_lmax = 3 * nside - 1
+    lmax = args.lmax if args.lmax is not None else default_lmax
+    lmax = min(lmax, theory.lmax)
+    if lmax <= 0:
+        raise ValueError("Theory spectra must provide ell coverage above zero")
+    geom = SimulationGeometry(mask=mask, bins=bins, nside=nside, lmax=lmax)
 
-    D = np.vstack(deltas)  # [nsims, nbins]
-    # Use unbiased covariance (rowvar=False), ddof=1 by default
-    C = np.cov(D, rowvar=False)
-    # Tiny floor to the diagonal helps conditioning without biasing structure
-    eps = 1e-10 * (np.trace(C) / max(C.shape[0], 1))
-    C += eps * np.eye(C.shape[0])
+    cov = estimate_delta_covariance(theory, geom, nsims=args.nsims, rng=rng)
 
-    save_npy(C, Path(args.out_cov))
-    summary_line(f"wrote {args.out_cov} with shape {C.shape}")
+    save_npy(cov, Path(args.out_cov))
+    summary_line(
+        f"wrote {args.out_cov} with shape {cov.shape} nside={nside} lmax={lmax} nsims={args.nsims}"
+    )
 
 
 if __name__ == "__main__":
