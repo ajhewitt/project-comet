@@ -61,6 +61,7 @@ def hemisphere_jackknife(delta: np.ndarray) -> np.ndarray:
     half = centred.size // 2
     mask[half:] = -1.0
     residual = centred * mask
+    residual = residual - residual.mean()
     return residual.astype(float)
 
 
