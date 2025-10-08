@@ -1,36 +1,16 @@
-"""Compatibility shim exposing commutator utilities to top-level imports.
+from __future__ import annotations
 
-This ensures modules and tests that expect ``commutator_common`` at the
-repository root can import the shared helpers regardless of the execution
-context. All functionality lives in :mod:`scripts.commutator_common`.
-"""
+import importlib
+import sys
+from pathlib import Path
 
-from scripts.commutator_common import (
-    MapBundle,
-    build_mask,
-    effective_f_sky,
-    load_bins_from_prereg,
-    nm_bandpowers,
-    nm_bins_from_config,
-    nm_bins_from_params,
-    nm_field_from_scalar,
-    read_map,
-    save_json,
-    save_npy,
-    summary_line,
-)
+_SRC = Path(__file__).resolve().parent / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
-__all__ = [
-    "MapBundle",
-    "build_mask",
-    "effective_f_sky",
-    "load_bins_from_prereg",
-    "nm_bandpowers",
-    "nm_bins_from_config",
-    "nm_bins_from_params",
-    "nm_field_from_scalar",
-    "read_map",
-    "save_json",
-    "save_npy",
-    "summary_line",
-]
+_impl = importlib.import_module("_commutator_common_impl")
+
+__all__ = getattr(_impl, "__all__", tuple())
+__doc__ = getattr(_impl, "__doc__", None)
+
+globals().update({name: getattr(_impl, name) for name in __all__})
