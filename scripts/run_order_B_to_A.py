@@ -16,6 +16,7 @@ from commutator_common import (
     nm_bandpowers,
     nm_bins_from_params,
     nm_field_from_scalar,
+    infer_bin_lmax,
     read_map,
     save_json,
     summary_line,

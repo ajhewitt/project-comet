@@ -165,6 +165,7 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     cov_path = Path(args.cov)
     sigma = None
+    positive_variance = np.zeros(0, dtype=bool)
     if cov_path.exists():
         cov = np.load(cov_path)
         if cov.shape[0] != cov.shape[1] or cov.shape[0] != nbins:
@@ -173,13 +174,23 @@ def main(argv: Iterable[str] | None = None) -> int:
             )
         diag = np.asarray(np.diag(cov), dtype=float)
         sigma = np.sqrt(np.clip(diag, a_min=0.0, a_max=None))
+        positive_variance = sigma > 0
     else:
         sigma = np.zeros(nbins, dtype=float)
+        positive_variance = np.zeros(nbins, dtype=bool)
 
     z = np.zeros_like(delta)
     if sigma is not None:
         with np.errstate(divide="ignore", invalid="ignore"):
-            z = np.divide(delta, sigma, out=np.zeros_like(delta), where=sigma > 0)
+            z = np.divide(delta, sigma, out=np.zeros_like(delta), where=positive_variance)
+
+    nz_sigma_bins = int(np.count_nonzero(positive_variance))
+    if nz_sigma_bins:
+        mean_abs_z = float(np.mean(np.abs(z[positive_variance])))
+        max_abs_z = float(np.max(np.abs(z[positive_variance])))
+    else:
+        mean_abs_z = 0.0
+        max_abs_z = 0.0
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     np.savez(
@@ -194,13 +205,15 @@ def main(argv: Iterable[str] | None = None) -> int:
         order_b=str(args.order_b),
         theory=args.theory.as_posix(),
         cov=args.cov.as_posix() if cov_path.exists() else None,
+        valid_sigma=positive_variance,
     )
 
     args.summary.parent.mkdir(parents=True, exist_ok=True)
     summary = {
         "nbins": int(nbins),
-        "mean_abs_z": float(np.mean(np.abs(z))) if z.size else 0.0,
-        "max_abs_z": float(np.max(np.abs(z))) if z.size else 0.0,
+        "mean_abs_z": mean_abs_z,
+        "max_abs_z": max_abs_z,
+        "nz_sigma_bins": nz_sigma_bins,
         "inputs": {
             "order_a": str(args.order_a),
             "order_b": str(args.order_b),
@@ -213,10 +226,17 @@ def main(argv: Iterable[str] | None = None) -> int:
     }
     args.summary.write_text(json.dumps(summary, indent=2, sort_keys=True))
 
-    summary_line(
-        "cross-spectrum "
-        f"bins={nbins} mean|z|={summary['mean_abs_z']:.3f} max|z|={summary['max_abs_z']:.3f}"
-    )
+    if nz_sigma_bins:
+        summary_line(
+            "cross-spectrum "
+            f"bins={nbins} valid_bins={nz_sigma_bins} "
+            f"mean|z|={summary['mean_abs_z']:.3f} max|z|={summary['max_abs_z']:.3f}"
+        )
+    else:
+        summary_line(
+            "cross-spectrum "
+            f"bins={nbins} valid_bins=0 (covariance diagonal non-positive; z-scores unavailable)"
+        )
     return 0
 
 
