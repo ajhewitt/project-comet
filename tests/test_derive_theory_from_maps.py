@@ -6,13 +6,18 @@ from pathlib import Path
 import importlib
 import sys
 import types
+import importlib.machinery
 
 import pytest
 
 np = pytest.importorskip("numpy")
 
 if "healpy" not in sys.modules:
-    sys.modules["healpy"] = types.SimpleNamespace(read_map=None, anafast=None)
+    stub = types.ModuleType("healpy")
+    stub.__spec__ = importlib.machinery.ModuleSpec("healpy", loader=None)
+    stub.read_map = None
+    stub.anafast = None
+    sys.modules["healpy"] = stub
 
 derive = importlib.import_module("scripts.derive_theory_from_maps")
 
