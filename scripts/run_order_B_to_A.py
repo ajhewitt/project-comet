@@ -10,12 +10,12 @@ import numpy as np
 from commutator_common import (
     WindowConfig,
     build_mask,
+    infer_bin_lmax,
     load_bins_from_prereg,
     load_windows_from_prereg,
     nm_bandpowers,
     nm_bins_from_params,
     nm_field_from_scalar,
-    infer_bin_lmax,
     read_map,
     save_json,
     summary_line,
