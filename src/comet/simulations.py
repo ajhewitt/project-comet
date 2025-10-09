@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from commutator_common import nm_bandpowers, nm_field_from_scalar
+from commutator_common import infer_bin_lmax, nm_bandpowers, nm_field_from_scalar
 
 from .theory import TheoryCls
 
@@ -91,7 +91,10 @@ def estimate_delta_covariance(
         t_map, k_map = draw_correlated_maps(
             theory, nside=geometry.nside, lmax=geometry.lmax, rng=rng
         )
-        field_lmax = getattr(geometry.bins, "lmax", None)
+        field_lmax = infer_bin_lmax(
+            geometry.bins,
+            fallbacks=(geometry.lmax, 3 * geometry.nside - 1),
+        )
         f_t = nm_field_from_scalar(t_map, mask, lmax=field_lmax)
         f_k = nm_field_from_scalar(k_map, mask, lmax=field_lmax)
         cl_tk = nm_bandpowers(f_t, f_k, geometry.bins)

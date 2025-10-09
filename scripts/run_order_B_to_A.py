@@ -15,6 +15,7 @@ from commutator_common import (
     nm_bandpowers,
     nm_bins_from_params,
     nm_field_from_scalar,
+    infer_bin_lmax,
     read_map,
     save_json,
     summary_line,
@@ -86,7 +87,15 @@ def main():
         summary_line(f"failed to load window config: {exc}; using defaults")
         windows_cfg = None
 
-    field_lmax = getattr(bins, "lmax", None)
+    fallback_lmax: list[int | None] = []
+    if args.lmax is not None:
+        fallback_lmax.append(int(args.lmax))
+    fallback_lmax.append(3 * nside - 1)
+    field_lmax = infer_bin_lmax(
+        bins,
+        bins_meta=bins_meta,
+        fallbacks=fallback_lmax,
+    )
     f1 = nm_field_from_scalar(phi, mask, lmax=field_lmax)
     f2 = nm_field_from_scalar(cmb, mask, lmax=field_lmax)
     cl = nm_bandpowers(

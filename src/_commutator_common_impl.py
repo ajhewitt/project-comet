@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -77,6 +78,7 @@ __all__ = [
     "MapBundle",
     "build_mask",
     "effective_f_sky",
+    "infer_bin_lmax",
     "load_bins_from_prereg",
     "load_windows_from_prereg",
     "nm_bandpowers",
@@ -173,6 +175,87 @@ def nm_bins_from_params(
         ell_min = numpy.arange(lmin_val, lmax_val + 1, nlb, dtype=int)
         ell_max = numpy.minimum(ell_min + nlb - 1, lmax_val)
         return from_edges(ell_min, ell_max)
+
+
+def infer_bin_lmax(
+    bins: nmt.NmtBin,
+    *,
+    bins_meta: Mapping[str, Any] | None = None,
+    fallbacks: tuple[int | None, ...] | list[int | None] = (),
+) -> int | None:
+    """Infer the maximum multipole represented by ``bins``.
+
+    Parameters
+    ----------
+    bins
+        NaMaster binning object.
+    bins_meta
+        Optional metadata associated with the bins, typically sourced from the
+        preregistration configuration. When provided, the function will prefer a
+        positive ``lmax`` entry from this mapping.
+    fallbacks
+        Additional candidate values to consider when ``bins`` does not expose an
+        explicit maximum multipole. Any positive entries are returned in the
+        order supplied after consulting ``bins`` and ``bins_meta``.
+    """
+
+    candidates: list[int | None] = []
+
+    lmax_attr = getattr(bins, "lmax", None)
+    if lmax_attr is not None:
+        candidates.append(int(lmax_attr))
+
+    if bins_meta is not None and isinstance(bins_meta, Mapping):
+        meta_lmax = bins_meta.get("lmax")
+        if meta_lmax is not None:
+            candidates.append(int(meta_lmax))
+
+    get_ell_list = getattr(bins, "get_ell_list", None)
+    if callable(get_ell_list):
+        try:
+            ell_list = get_ell_list()
+        except TypeError:
+            ell_list = None
+        if ell_list is not None:
+            ell_max: Any | None
+            if isinstance(ell_list, tuple):
+                if len(ell_list) >= 2:
+                    ell_max = ell_list[1]
+                elif len(ell_list) == 1:
+                    ell_max = ell_list[0]
+                else:
+                    ell_max = None
+            else:
+                ell_max = ell_list
+            if ell_max is not None:
+                try:
+                    candidates.append(int(ell_max[-1]))
+                except (TypeError, IndexError):
+                    pass
+
+    get_effective_ells = getattr(bins, "get_effective_ells", None)
+    if callable(get_effective_ells):
+        try:
+            effective = get_effective_ells()
+        except TypeError:
+            effective = None
+        if effective is not None:
+            try:
+                value = float(max(effective))
+            except ValueError:
+                value = float("nan")
+            if value > 0 and math.isfinite(value):
+                candidates.append(int(math.ceil(value)))
+
+    for candidate in candidates:
+        if candidate is not None and int(candidate) > 0:
+            return int(candidate)
+
+    for fallback in fallbacks:
+        if fallback is not None and int(fallback) > 0:
+            return int(fallback)
+
+    return None
 
 
 def nm_bins_from_config(nside: int, bins_cfg: Mapping[str, Any]) -> nmt.NmtBin:
