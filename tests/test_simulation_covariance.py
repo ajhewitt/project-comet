@@ -6,7 +6,11 @@ pytest.importorskip("pymaster", reason="simulation tests require NaMaster")
 
 import numpy as np
 
-from comet.simulations import SimulationGeometry, estimate_delta_covariance
+from comet.simulations import (
+    SimulationGeometry,
+    estimate_delta_covariance,
+    resolve_simulation_bandlimits,
+)
 from comet.theory import TheoryCls
 from commutator_common import nm_bins_from_params
 
@@ -27,7 +31,19 @@ def test_simulated_covariance_positive_definite():
     mask[mask.size // 3 :] *= 0.5
 
     bins = nm_bins_from_params(nside=nside, nlb=8)
-    geom = SimulationGeometry(mask=mask, bins=bins, nside=nside, lmax=int(ell.max()))
+    sim_lmax, field_lmax = resolve_simulation_bandlimits(
+        bins,
+        requested_lmax=int(ell.max()),
+        theory_lmax=int(ell.max()),
+        nside=nside,
+    )
+    geom = SimulationGeometry(
+        mask=mask,
+        bins=bins,
+        nside=nside,
+        lmax=sim_lmax,
+        field_lmax=field_lmax,
+    )
 
     cov = estimate_delta_covariance(theory, geom, nsims=24, rng=rng)
     assert cov.shape[0] == cov.shape[1]

@@ -77,4 +77,50 @@ def test_summarize_results_creates_figures(tmp_path, monkeypatch):
 
     payload = json.loads(summary_path.read_text())
     assert "summary" in payload and payload["summary"]
-    assert any("cross-spectrum" in msg for msg in messages)
+    assert any('"valid_bins": 3' in msg for msg in messages)
+
+
+def test_summarize_results_warns_when_no_covariance(tmp_path, monkeypatch):
+    module = _load_script("summarize_results", Path("scripts/summarize_results.py"))
+
+    delta = np.array([0.0, 0.0], dtype=float)
+    delta_path = tmp_path / "delta.npy"
+    np.save(delta_path, delta)
+
+    ell = np.array([10.0, 20.0], dtype=float)
+    cl_data = np.array([1.0, 2.0], dtype=float)
+    cl_theory = np.array([0.5, 1.5], dtype=float)
+    cross_path = tmp_path / "cross.npz"
+    np.savez(
+        cross_path,
+        ell=ell,
+        cl_data=cl_data,
+        cl_theory=cl_theory,
+        sigma=np.zeros_like(cl_data),
+        delta=cl_data - cl_theory,
+        z=np.zeros_like(cl_data),
+    )
+
+    outdir = tmp_path / "figures"
+    summary_path = tmp_path / "summary.json"
+    messages: list[str] = []
+    monkeypatch.setattr(module, "summary_line", lambda msg: messages.append(msg), raising=False)
+
+    module.main(
+        [
+            "--delta",
+            str(delta_path),
+            "--cov",
+            str(tmp_path / "missing_cov.npy"),
+            "--cross",
+            str(cross_path),
+            "--outdir",
+            str(outdir),
+            "--summary",
+            str(summary_path),
+        ]
+    )
+
+    payload = json.loads(summary_path.read_text())
+    assert any("z-scores unavailable" in line for line in payload["summary"])
+    assert any('"valid_bins": 0' in msg for msg in messages)

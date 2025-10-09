@@ -81,7 +81,67 @@ def test_compute_cross_spectrum_outputs(tmp_path, monkeypatch):
     np.testing.assert_allclose(data["sigma"], np.sqrt(diag))
     np.testing.assert_allclose(data["delta"], np.array([0.5, 1.05, 2.0]))
     np.testing.assert_allclose(data["z"], np.array([1.0, 2.625, 6.66666667]), rtol=1e-6)
+    assert "valid_sigma" in data
+    np.testing.assert_array_equal(data["valid_sigma"], np.array([True, True, True]))
 
     summary_payload = json.loads(summary.read_text())
     assert summary_payload["nbins"] == 3
-    assert messages and "cross-spectrum" in messages[-1]
+    assert summary_payload["nz_sigma_bins"] == 3
+    assert messages and "valid_bins=3" in messages[-1]
+
+
+def test_compute_cross_spectrum_warns_when_covariance_missing(tmp_path, monkeypatch):
+    module = _load_script_module(
+        "compute_cross_spectrum", Path("scripts/compute_cross_spectrum.py")
+    )
+
+    cl_a = np.array([0.1, 0.2], dtype=float)
+    cl_b = np.array([0.3, 0.4], dtype=float)
+    order_a = tmp_path / "order_a.npz"
+    order_b = tmp_path / "order_b.npz"
+    np.savez(order_a, cl=cl_a, nside=128)
+    np.savez(order_b, cl=cl_b, nside=128)
+
+    theory_path = tmp_path / "theory.npz"
+    ell = np.arange(0, 20, dtype=float)
+    np.savez(
+        theory_path,
+        ell=ell,
+        cl_tt=ell,
+        cl_kk=ell,
+        cl_tk=0.5 * ell,
+    )
+
+    messages: list[str] = []
+    monkeypatch.setattr(module, "summary_line", lambda msg: messages.append(msg), raising=False)
+
+    out = tmp_path / "cross.npz"
+    summary = tmp_path / "summary.json"
+    module.main(
+        [
+            "--order-a",
+            str(order_a),
+            "--order-b",
+            str(order_b),
+            "--theory",
+            str(theory_path),
+            "--prereg",
+            str(tmp_path / "missing_prereg.yaml"),
+            "--lmin",
+            "2",
+            "--nlb",
+            "4",
+            "--cov",
+            str(tmp_path / "missing_cov.npy"),
+            "--out",
+            str(out),
+            "--summary",
+            str(summary),
+        ]
+    )
+
+    data = np.load(out)
+    np.testing.assert_array_equal(data["valid_sigma"], np.array([False, False]))
+    payload = json.loads(summary.read_text())
+    assert payload["nz_sigma_bins"] == 0
+    assert any("valid_bins=0" in msg for msg in messages)
