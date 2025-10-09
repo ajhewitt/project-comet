@@ -5,9 +5,19 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
-import healpy as hp
+try:  # pragma: no cover - imported when healpy is available
+    import healpy as _hp
+except ModuleNotFoundError:  # pragma: no cover - optional dependency missing
+    _hp = None  # type: ignore[assignment]
+
 import numpy as np
+
+if TYPE_CHECKING:  # pragma: no cover - typing helper only
+    import healpy as hp  # type: ignore
+else:  # pragma: no cover - executed at runtime
+    hp = _hp  # type: ignore[assignment]
 
 DEFAULT_CMB = Path("data/COM_CompMap_CMB-smica_2048_R1.20.fits")
 DEFAULT_KAPPA = Path("data/COM_CompMap_Lensing_2048_R1.10.fits")
@@ -48,15 +58,27 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _require_healpy() -> Any:
+    if hp is None:
+        msg = (
+            "healpy is required to derive theory spectra; install the optional 'maps' "
+            "dependencies to enable this script"
+        )
+        raise ModuleNotFoundError(msg)
+    return hp
+
+
 def compute_spectra(
     cmb_map: Path, kappa_map: Path, lmax: int
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    cmb = hp.read_map(cmb_map, field=0)
-    kappa = hp.read_map(kappa_map, field=0)
+    healpy = _require_healpy()
 
-    cl_tt = hp.anafast(cmb, lmax=lmax)
-    cl_kk = hp.anafast(kappa, lmax=lmax)
-    cl_tk = hp.anafast(cmb, kappa, lmax=lmax)
+    cmb = healpy.read_map(cmb_map, field=0)
+    kappa = healpy.read_map(kappa_map, field=0)
+
+    cl_tt = healpy.anafast(cmb, lmax=lmax)
+    cl_kk = healpy.anafast(kappa, lmax=lmax)
+    cl_tk = healpy.anafast(cmb, kappa, lmax=lmax)
     ell = np.arange(cl_tt.size)
     return ell, cl_tt, cl_kk, cl_tk
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib
-import importlib.machinery
 import sys
 import types
 from pathlib import Path
@@ -16,13 +15,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 np = pytest.importorskip("numpy")
 
-if "healpy" not in sys.modules:
-    stub = types.ModuleType("healpy")
-    stub.__spec__ = importlib.machinery.ModuleSpec("healpy", loader=None)
-    stub.read_map = None
-    stub.anafast = None
-    sys.modules["healpy"] = stub
-
 derive = importlib.import_module("scripts.derive_theory_from_maps")
 
 
@@ -30,6 +22,7 @@ def test_compute_spectra(monkeypatch):
     cmb_path = Path("cmb.fits")
     kappa_path = Path("kappa.fits")
     lmax = 3
+    expected_lmax = lmax
 
     cmb_map = np.array([1.0, 2.0, 3.0])
     kappa_map = np.array([4.0, 5.0, 6.0])
@@ -43,7 +36,7 @@ def test_compute_spectra(monkeypatch):
         raise AssertionError(f"unexpected path {path}")
 
     def fake_anafast(*arrays, lmax):
-        assert lmax == expected_lmax[0]
+        assert lmax == expected_lmax
         if len(arrays) == 1 and arrays[0] is cmb_map:
             return np.array([0.1, 0.2, 0.3, 0.4])
         if len(arrays) == 1 and arrays[0] is kappa_map:
@@ -52,10 +45,11 @@ def test_compute_spectra(monkeypatch):
             return np.array([2.1, 2.2, 2.3, 2.4])
         raise AssertionError("unexpected ana fast call")
 
-    expected_lmax = (lmax,)
-
-    monkeypatch.setattr(derive.hp, "read_map", fake_read_map)
-    monkeypatch.setattr(derive.hp, "anafast", fake_anafast)
+    monkeypatch.setattr(
+        derive,
+        "_require_healpy",
+        lambda: types.SimpleNamespace(read_map=fake_read_map, anafast=fake_anafast),
+    )
 
     ell, cl_tt, cl_kk, cl_tk = derive.compute_spectra(cmb_path, kappa_path, lmax)
 
