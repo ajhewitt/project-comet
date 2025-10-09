@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-COMET_ALLOW_DIRTY=1 micromamba run -n comet python -m comet.cli run \
-  --ordering both \
-  --prereg config/prereg.yaml \
-  --paths config/paths.yaml \
-  --out artifacts/summary.json
+
+# Allow runs from a repository with staged data files by default; callers can
+# override by exporting COMET_ALLOW_DIRTY=0 if they want to enforce a clean tree.
+export COMET_ALLOW_DIRTY="${COMET_ALLOW_DIRTY:=1}"
+
+micromamba run -n comet python -m comet.cli run "$@"

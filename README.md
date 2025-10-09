@@ -79,10 +79,20 @@ You can confirm that the data are discoverable with the helper command:
 micromamba run -n comet python -m comet.cli data --list
 ```
 
-### 4. Run pipeline
+### 4. Run the pipeline on the staged data
+
+Run the default analysis (the helper script now forwards any extra arguments to
+the CLI, so you can tweak options such as `--ordering` if desired):
+
 ```bash
 ./bin/comet-run
-cat artifacts/summary.json
+```
+
+The run writes its output to `artifacts/summary.json`. Inspect it with your
+preferred JSON viewer (for example, `jq`):
+
+```bash
+jq . artifacts/summary.json
 ```
 
 This will produce a JSON output like:
