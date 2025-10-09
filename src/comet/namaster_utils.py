@@ -271,14 +271,32 @@ def make_bins(lmax: int, nlb: int) -> nmt.NmtBin:
     return module.NmtBin.from_lmax(lmax=lmax, nlb=nlb)
 
 
-def field_from_map(m: np.ndarray, mask: np.ndarray | None = None) -> nmt.NmtField:
-    """Build a spin-0 NaMaster field from a scalar map and an optional mask."""
+def field_from_map(
+    m: np.ndarray,
+    mask: np.ndarray | None = None,
+    *,
+    lmax: int | None = None,
+) -> nmt.NmtField:
+    """Build a spin-0 NaMaster field from a scalar map and an optional mask.
+
+    Parameters
+    ----------
+    m
+        The scalar map that should be wrapped in a :class:`~pymaster.NmtField`.
+    mask
+        Optional mask to apply when creating the field. If omitted a mask is
+        constructed from the finite pixels of ``m``.
+    lmax
+        Optional harmonic band-limit to apply. When provided it is forwarded to
+        :class:`~pymaster.NmtField` so that the field and any accompanying
+        :class:`~pymaster.NmtBin` instances share the same maximum multipole.
+    """
 
     numpy = _require_numpy()
     if mask is None:
         mask = numpy.isfinite(m).astype(float)
     module = _require_nmt()
-    return module.NmtField(mask, [m])
+    return module.NmtField(mask, [m], lmax=lmax)
 
 
 def bandpowers(

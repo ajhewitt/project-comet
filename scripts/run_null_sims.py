@@ -7,7 +7,11 @@ from pathlib import Path
 import healpy as hp
 import numpy as np
 
-from comet.simulations import SimulationGeometry, estimate_delta_covariance
+from comet.simulations import (
+    SimulationGeometry,
+    estimate_delta_covariance,
+    resolve_simulation_bandlimits,
+)
 from comet.theory import load_theory
 from commutator_common import (
     build_mask,
@@ -51,18 +55,26 @@ def main():
     bins = nm_bins_from_params(nside=nside, lmax=args.lmax, nlb=args.nlb)
 
     theory = load_theory(args.theory)
-    default_lmax = 3 * nside - 1
-    lmax = args.lmax if args.lmax is not None else default_lmax
-    lmax = min(lmax, theory.lmax)
-    if lmax <= 0:
-        raise ValueError("Theory spectra must provide ell coverage above zero")
-    geom = SimulationGeometry(mask=mask, bins=bins, nside=nside, lmax=lmax)
+    sim_lmax, field_lmax = resolve_simulation_bandlimits(
+        bins,
+        requested_lmax=args.lmax,
+        theory_lmax=theory.lmax,
+        nside=nside,
+    )
+    geom = SimulationGeometry(
+        mask=mask,
+        bins=bins,
+        nside=nside,
+        lmax=sim_lmax,
+        field_lmax=field_lmax,
+    )
 
     cov = estimate_delta_covariance(theory, geom, nsims=args.nsims, rng=rng)
 
     save_npy(cov, Path(args.out_cov))
     summary_line(
-        f"wrote {args.out_cov} with shape {cov.shape} nside={nside} lmax={lmax} nsims={args.nsims}"
+        f"wrote {args.out_cov} with shape {cov.shape} nside={nside}"
+        f" lmax={sim_lmax} field_lmax={field_lmax} nsims={args.nsims}"
     )
 
 
