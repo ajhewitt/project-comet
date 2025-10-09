@@ -162,16 +162,22 @@ def nm_bins_from_params(
 
     try:
         return module.NmtBin.from_nside_linear(**kwargs)
-    except TypeError:
-        if lmin_val is None:
-            raise
-        # Older NaMaster releases do not accept lmin in from_nside_linear; fall back to
-        # constructing explicit edges that honour the requested lower bound.
+    except TypeError as exc:
+        # Older NaMaster releases reject ``lmin``/``lmax`` keywords; fall back to constructing
+        # explicit edges that honour the requested limits.
         from_edges = getattr(module.NmtBin, "from_edges", None)
         if from_edges is None:
-            raise RuntimeError("NaMaster does not expose NmtBin.from_edges; cannot enforce lmin")
+            raise RuntimeError(
+                "NaMaster does not expose NmtBin.from_edges; cannot honour explicit band-limits"
+            ) from exc
+
+        if lmin_val is None:
+            lmin_val = 0
         if lmax_val is None:
             lmax_val = 3 * nside - 1
+        if lmax_val < lmin_val:
+            raise ValueError("lmax must be greater than or equal to lmin")
+
         ell_min = numpy.arange(lmin_val, lmax_val + 1, nlb, dtype=int)
         ell_max = numpy.minimum(ell_min + nlb - 1, lmax_val)
         return from_edges(ell_min, ell_max)
