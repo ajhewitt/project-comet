@@ -8,7 +8,7 @@ from pathlib import Path
 from .run import run_pipeline
 
 DEFAULT_PREREG = "config/prereg.yaml"
-DEFAULT_PATHS = "config/paths.example.yaml"
+DEFAULT_PATHS = "config/paths.yaml"
 DEFAULT_OUT = "artifacts/summary.json"
 
 
