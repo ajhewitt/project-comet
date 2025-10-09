@@ -126,9 +126,27 @@ earlier.
    ```
    Capture the git commit ID and any environment hashes in your run log.
 
-2. **Prepare a theory spectrum file.** Place the fiducial CMB lensing
-   theory (for example the Planck 2018 ΛCDM prediction) somewhere under
-   `data/` and inspect it to verify ℓ coverage:
+2. **Prepare a theory spectrum file.** The repository does **not** ship a
+   fiducial lensing theory. If you only have the two Planck maps staged above,
+   you can build a self-consistent theory table by computing the full-sky auto
+   and cross spectra from those maps. Run the provided helper script, which
+   reads the FITS files, evaluates the temperature auto-spectrum
+   $C_\ell^{TT}$, the lensing convergence auto-spectrum $C_\ell^{\kappa\kappa}$,
+   and their cross-spectrum $C_\ell^{T\kappa}$ with `healpy.anafast`, then
+   writes the four-column ASCII file expected by the CLI. Feel free to pass
+   `--lmax`, `--cmb-map`, or `--kappa-map` if your analysis setup differs.
+
+   ```bash
+   micromamba run -n comet python scripts/derive_theory_from_maps.py \
+     --output-npz data/theory/tk_planck2018.npz
+   ```
+
+   By default the script saves `data/theory/tk_planck2018.txt`. The CLI
+   utilities accept this plain-text file directly: the first column must be
+   the multipole $\ell$, followed by $C_\ell^{TT}$, $C_\ell^{\kappa\kappa}$, and
+   $C_\ell^{T\kappa}$. Supplying `--output-npz` also writes the NumPy archive
+   used by the tests and scripts in this repository. Afterwards, inspect the
+   theory coverage to confirm it matches your analysis range:
    ```bash
    micromamba run -n comet python scripts/theory.py data/theory/tk_planck2018.npz \
      --summary artifacts/theory_summary.json
