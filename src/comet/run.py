@@ -6,9 +6,10 @@ import importlib.util
 import json
 import os
 import subprocess
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 try:  # pragma: no cover - optional dependency in CI
     import yaml
@@ -16,7 +17,6 @@ except ModuleNotFoundError:  # pragma: no cover - exercised when PyYAML absent
     yaml = None  # type: ignore[assignment]
 
 from .config import get_data_dir
-
 
 _NUMPY = None
 _ASTROPY_FITS = None
@@ -237,8 +237,12 @@ def run_pipeline(
         )
 
     data_dir = get_data_dir()
-    cmb = _resolve_map_path(paths.get("temperature_map"), "COM_CompMap_CMB-smica_2048_R1.20.fits", data_dir)
-    lensing = _resolve_map_path(paths.get("lensing_map"), "COM_CompMap_Lensing_2048_R1.10.fits", data_dir)
+    cmb = _resolve_map_path(
+        paths.get("temperature_map"), "COM_CompMap_CMB-smica_2048_R1.20.fits", data_dir
+    )
+    lensing = _resolve_map_path(
+        paths.get("lensing_map"), "COM_CompMap_Lensing_2048_R1.10.fits", data_dir
+    )
 
     artifacts_dir = _resolve_artifacts_dir()
     nbins_env = os.getenv("COMET_NBINS", "10")

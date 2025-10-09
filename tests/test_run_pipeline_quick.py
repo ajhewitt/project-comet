@@ -5,7 +5,6 @@ import pytest
 
 from comet.run import run_pipeline
 
-
 _NUMPY_SPEC = importlib.util.find_spec("numpy")
 if _NUMPY_SPEC is not None:
     np = importlib.import_module("numpy")
