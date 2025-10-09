@@ -48,7 +48,9 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def compute_spectra(cmb_map: Path, kappa_map: Path, lmax: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def compute_spectra(
+    cmb_map: Path, kappa_map: Path, lmax: int
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     cmb = hp.read_map(cmb_map, field=0)
     kappa = hp.read_map(kappa_map, field=0)
 
@@ -59,14 +61,18 @@ def compute_spectra(cmb_map: Path, kappa_map: Path, lmax: int) -> tuple[np.ndarr
     return ell, cl_tt, cl_kk, cl_tk
 
 
-def write_text(path: Path, ell: np.ndarray, cl_tt: np.ndarray, cl_kk: np.ndarray, cl_tk: np.ndarray) -> None:
+def write_text(
+    path: Path, ell: np.ndarray, cl_tt: np.ndarray, cl_kk: np.ndarray, cl_tk: np.ndarray
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     table = np.column_stack([ell, cl_tt, cl_kk, cl_tk])
     header = "ell ClTT Clkk ClTk"
     np.savetxt(path, table, header=header)
 
 
-def write_npz(path: Path, ell: np.ndarray, cl_tt: np.ndarray, cl_kk: np.ndarray, cl_tk: np.ndarray) -> None:
+def write_npz(
+    path: Path, ell: np.ndarray, cl_tt: np.ndarray, cl_kk: np.ndarray, cl_tk: np.ndarray
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez(path, ell=ell, cl_tt=cl_tt, cl_kk=cl_kk, cl_tk=cl_tk)
 
