@@ -109,6 +109,120 @@ This will produce a JSON output like:
 
 ---
 
+## Full science analysis workflow
+
+The quick stub above is useful for smoke tests. To reproduce the
+science-grade null test and cross-spectrum that the collaboration uses
+for publication, follow the staged steps below. All commands assume you
+are inside the repository root, have activated the environment with
+`micromamba run -n comet`, and have staged the Planck maps as described
+earlier.
+
+1. **Confirm data discovery and record configuration hashes.**
+   ```bash
+   micromamba run -n comet python -m comet.cli data --list
+   git status --short
+   git rev-parse HEAD
+   ```
+   Capture the git commit ID and any environment hashes in your run log.
+
+2. **Prepare a theory spectrum file.** Place the fiducial CMB lensing
+   theory (for example the Planck 2018 ΛCDM prediction) somewhere under
+   `data/` and inspect it to verify ℓ coverage:
+   ```bash
+   micromamba run -n comet python scripts/theory.py data/theory/tk_planck2018.npz \
+     --summary artifacts/theory_summary.json
+   ```
+
+3. **Generate both commutator orderings at full resolution.** Use the
+   shared mask and preregistered binning (if available) when running the
+   two orderings. Adjust `--quick-nside`, `--nlb`, `--lmin`, and related
+   arguments to your publication settings (the example below runs at
+   NSIDE 2048 with 30-wide bins):
+   ```bash
+   micromamba run -n comet python scripts/run_order_A_to_B.py \
+     --data-dir "${COMET_DATA_DIR:-data}" \
+     --quick-nside 2048 --nlb 30 --lmin 30 --lmax 2048 \
+     --threshold-sigma 4.0 --apod-arcmin 60.0 \
+     --out artifacts/order_A_to_B_full.npz
+
+   micromamba run -n comet python scripts/run_order_B_to_A.py \
+     --data-dir "${COMET_DATA_DIR:-data}" \
+     --quick-nside 2048 --nlb 30 --lmin 30 --lmax 2048 \
+     --threshold-sigma 4.0 --apod-arcmin 60.0 \
+     --out artifacts/order_B_to_A_full.npz
+   ```
+   Each script emits a JSON sidecar summarizing the binning and mask
+   choices. Archive both `.npz` payloads and their `.json` companions.
+
+4. **Build the null covariance from simulations.** Supply the same
+   geometry choices (NSIDE, binning, mask) and the theory spectrum from
+   step 2. Increase `--nsims` until the minimum eigenvalue is stable;
+   for publication we typically use ≥1000 realizations.
+   ```bash
+   micromamba run -n comet python scripts/run_null_sims.py \
+     --data-dir "${COMET_DATA_DIR:-data}" \
+     --quick-nside 2048 --nlb 30 --lmax 2048 \
+     --theory data/theory/tk_planck2018.npz \
+     --nsims 1000 --seed 2025 \
+     --out-cov artifacts/cov_delta_full.npy
+   ```
+   Inspect the terminal summary for the covariance size and record the
+   random seed alongside the command in your lab notebook.
+
+5. **Form the commutator residual and null statistic.**
+   ```bash
+   micromamba run -n comet python scripts/compute_commutator.py \
+     --order-a artifacts/order_A_to_B_full.npz \
+     --order-b artifacts/order_B_to_A_full.npz \
+     --cov artifacts/cov_delta_full.npy \
+     --out-delta artifacts/delta_ell_full.npy \
+     --out-summary artifacts/summary_full.json
+   ```
+   The resulting JSON contains the Δ vector length and the stabilized
+   χ ("z") statistic for the null test.
+
+6. **Assemble the science cross-spectrum.** Average the two orderings,
+   compare to theory, and compute per-bin significances:
+   ```bash
+   micromamba run -n comet python scripts/compute_cross_spectrum.py \
+     --order-a artifacts/order_A_to_B_full.npz \
+     --order-b artifacts/order_B_to_A_full.npz \
+     --theory data/theory/tk_planck2018.npz \
+     --cov artifacts/cov_delta_full.npy \
+     --out artifacts/cross_tk_full.npz \
+     --summary artifacts/cross_summary_full.json
+   ```
+   Check `artifacts/cross_summary_full.json` to confirm the mean and
+   maximum |z| are consistent with a null detection.
+
+7. **Generate publication figures and a textual digest.**
+   ```bash
+   micromamba run -n comet python scripts/summarize_results.py \
+     --delta artifacts/delta_ell_full.npy \
+     --summary docs/summaries/full_run.json \
+     --cov artifacts/cov_delta_full.npy \
+     --cross artifacts/cross_tk_full.npz \
+     --outdir docs/figures/full_run
+   ```
+   This produces plots of Δ bandpowers, the null histogram, the
+   T×κ spectrum with uncertainties, and per-bin z-scores. Include these
+   figures and the JSON summaries in your archival package.
+
+8. **Archive provenance.** Save the executed command list, git commit
+   hash, configuration files (`config/*.yaml`), the artifacts under
+   `artifacts/`, and generated figures under `docs/figures/full_run/` in
+   a versioned, timestamped directory for future audits and publication
+   supplements.
+
+Following these steps yields a repeatable end-to-end analysis: staging
+data, constructing both commutator orderings, calibrating the covariance
+from simulations, computing the null statistic, and delivering the
+science cross-spectrum together with diagnostic plots ready for
+publication.
+
+---
+
 ## Project Structure
 
 ```
