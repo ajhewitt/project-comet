@@ -86,8 +86,9 @@ def main():
         summary_line(f"failed to load window config: {exc}; using defaults")
         windows_cfg = None
 
-    f1 = nm_field_from_scalar(phi, mask)
-    f2 = nm_field_from_scalar(cmb, mask)
+    field_lmax = getattr(bins, "lmax", None)
+    f1 = nm_field_from_scalar(phi, mask, lmax=field_lmax)
+    f2 = nm_field_from_scalar(cmb, mask, lmax=field_lmax)
     cl = nm_bandpowers(
         f1,
         f2,

@@ -211,8 +211,15 @@ def load_windows_from_prereg(prereg_path: Path) -> WindowConfig:
     return parse_window_config(windows_cfg)
 
 
-def nm_field_from_scalar(m: np.ndarray, mask: np.ndarray) -> nmt.NmtField:
-    return _field_from_map(m, mask)
+def nm_field_from_scalar(
+    m: np.ndarray,
+    mask: np.ndarray,
+    *,
+    lmax: int | None = None,
+) -> nmt.NmtField:
+    """Create a NaMaster scalar field with an optional harmonic band-limit."""
+
+    return _field_from_map(m, mask, lmax=lmax)
 
 
 def nm_bandpowers(

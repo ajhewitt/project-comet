@@ -91,8 +91,9 @@ def estimate_delta_covariance(
         t_map, k_map = draw_correlated_maps(
             theory, nside=geometry.nside, lmax=geometry.lmax, rng=rng
         )
-        f_t = nm_field_from_scalar(t_map, mask)
-        f_k = nm_field_from_scalar(k_map, mask)
+        field_lmax = getattr(geometry.bins, "lmax", None)
+        f_t = nm_field_from_scalar(t_map, mask, lmax=field_lmax)
+        f_k = nm_field_from_scalar(k_map, mask, lmax=field_lmax)
         cl_tk = nm_bandpowers(f_t, f_k, geometry.bins)
         cl_kt = nm_bandpowers(f_k, f_t, geometry.bins)
         deltas.append(cl_tk - cl_kt)
