@@ -71,6 +71,20 @@ def _require_numpy() -> Any:
     return module
 
 
+def _workspace_from_fields(module: Any, field_1: Any, field_2: Any, bins: Any) -> Any:
+    workspace_cls = module.NmtWorkspace
+    from_fields = getattr(workspace_cls, "from_fields", None)
+    if callable(from_fields):
+        return from_fields(field_1, field_2, bins)
+
+    try:
+        return workspace_cls(field_1, field_2, bins)
+    except TypeError:
+        workspace = workspace_cls()
+        workspace.compute_coupling_matrix(field_1, field_2, bins)
+        return workspace
+
+
 def _as_1d_array(values: Sequence[float] | Any) -> list[float]:
     if np is not None:
         arr = np.asarray(values, dtype=float)
@@ -311,8 +325,7 @@ def bandpowers(
 
     module = _require_nmt()
     numpy = _require_numpy()
-    workspace = module.NmtWorkspace()
-    workspace.compute_coupling_matrix(f1, f2, b)
+    workspace = _workspace_from_fields(module, f1, f2, b)
     cl_coupled = module.compute_coupled_cell(f1, f2)
     cl_decoupled = workspace.decouple_cell(cl_coupled)[0]
 

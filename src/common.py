@@ -42,9 +42,22 @@ def map_lowell(T_map, lmax_keep, nside):
     return hp.alm2map(alm_f, nside=nside, verbose=False)
 
 
+def _workspace_from_fields(field_a, field_b, bins):
+    workspace_cls = nmt.NmtWorkspace
+    from_fields = getattr(workspace_cls, "from_fields", None)
+    if callable(from_fields):
+        return from_fields(field_a, field_b, bins)
+
+    try:
+        return workspace_cls(field_a, field_b, bins)
+    except TypeError:
+        workspace = workspace_cls()
+        workspace.compute_coupling_matrix(field_a, field_b, bins)
+        return workspace
+
+
 def compute_cross_cls(field_a, field_b, bins):
-    w = nmt.NmtWorkspace()
-    w.compute_coupling_matrix(field_a, field_b, bins)
+    w = _workspace_from_fields(field_a, field_b, bins)
     cl_coup = nmt.compute_coupled_cell(field_a, field_b)
     cl_dec = w.decouple_cell(cl_coup)
     ells = bins.get_effective_ells()
