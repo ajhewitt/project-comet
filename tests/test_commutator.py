@@ -21,3 +21,11 @@ def test_z_score_finite():
     cov = np.eye(5)
     z = z_score(d, cov)
     assert np.isfinite(z) and z == 0
+
+
+def test_z_score_requires_positive_variances():
+    d = np.zeros(3)
+    cov = np.eye(3)
+    cov[0, 0] = -1.0
+    with pytest.raises(ValueError, match="Covariance diagonal non-positive"):
+        z_score(d, cov)
