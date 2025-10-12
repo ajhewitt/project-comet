@@ -1,4 +1,6 @@
 # src/common.py
+import warnings
+
 import healpy as hp
 import numpy as np
 import pymaster as nmt
@@ -51,7 +53,13 @@ def _workspace_from_fields(field_a, field_b, bins):
     try:
         return workspace_cls(field_a, field_b, bins)
     except TypeError:
-        workspace = workspace_cls()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="The bare constructor for `NmtWorkspace` objects is deprecated",
+                category=DeprecationWarning,
+            )
+            workspace = workspace_cls()
         workspace.compute_coupling_matrix(field_a, field_b, bins)
         return workspace
 

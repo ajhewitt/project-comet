@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from functools import cache
@@ -80,7 +81,13 @@ def _workspace_from_fields(module: Any, field_1: Any, field_2: Any, bins: Any) -
     try:
         return workspace_cls(field_1, field_2, bins)
     except TypeError:
-        workspace = workspace_cls()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="The bare constructor for `NmtWorkspace` objects is deprecated",
+                category=DeprecationWarning,
+            )
+            workspace = workspace_cls()
         workspace.compute_coupling_matrix(field_1, field_2, bins)
         return workspace
 
