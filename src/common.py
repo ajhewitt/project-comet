@@ -50,18 +50,19 @@ def _workspace_from_fields(field_a, field_b, bins):
     if callable(from_fields):
         return from_fields(field_a, field_b, bins)
 
-    try:
-        return workspace_cls(field_a, field_b, bins)
-    except TypeError:
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore",
-                message="The bare constructor for `NmtWorkspace` objects is deprecated",
-                category=DeprecationWarning,
-            )
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"The bare constructor for `NmtWorkspace` objects is deprecated",
+            category=DeprecationWarning,
+        )
+        try:
+            return workspace_cls(field_a, field_b, bins)
+        except TypeError:
             workspace = workspace_cls()
-        workspace.compute_coupling_matrix(field_a, field_b, bins)
-        return workspace
+
+    workspace.compute_coupling_matrix(field_a, field_b, bins)
+    return workspace
 
 
 def compute_cross_cls(field_a, field_b, bins):

@@ -78,18 +78,19 @@ def _workspace_from_fields(module: Any, field_1: Any, field_2: Any, bins: Any) -
     if callable(from_fields):
         return from_fields(field_1, field_2, bins)
 
-    try:
-        return workspace_cls(field_1, field_2, bins)
-    except TypeError:
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore",
-                message="The bare constructor for `NmtWorkspace` objects is deprecated",
-                category=DeprecationWarning,
-            )
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"The bare constructor for `NmtWorkspace` objects is deprecated",
+            category=DeprecationWarning,
+        )
+        try:
+            return workspace_cls(field_1, field_2, bins)
+        except TypeError:
             workspace = workspace_cls()
-        workspace.compute_coupling_matrix(field_1, field_2, bins)
-        return workspace
+
+    workspace.compute_coupling_matrix(field_1, field_2, bins)
+    return workspace
 
 
 def _as_1d_array(values: Sequence[float] | Any) -> list[float]:
