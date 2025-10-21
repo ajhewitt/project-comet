@@ -38,3 +38,4 @@ issues:
 
 ## Verification
 - `pytest` (with simulation dependencies available) executes the regression suite, confirming both the loader and covariance estimator satisfy the roadmap acceptance criteria for Phase 5.【F:tests/test_simulation_covariance.py†L12-L36】【F:tests/test_theory_loader.py†L17-L157】
+- Manual production run: `scripts/run_null_sims.py --theory artifacts/theory_planck_smica_lensing.npz --nsims 1000 --nside 2048` completed after approximately three days on a 12-thread Zen 5 workstation and produced `artifacts/cov_delta_full.npy` with shape 69×69 when invoked with the legacy CLI binning (`--disable-prereg --nlb 50`), matching the publication configuration logged by the CLI summary.

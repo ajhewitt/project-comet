@@ -53,6 +53,16 @@ def _save_npy(arr: np.ndarray, path: Path):
     np.save(path.as_posix(), arr)
 
 
+def _load_order_metadata(path: Path) -> dict | None:
+    sidecar = path.with_suffix(".json")
+    if not sidecar.exists():
+        return None
+    try:
+        return json.loads(sidecar.read_text())
+    except json.JSONDecodeError:
+        return None
+
+
 def main():
     ap = argparse.ArgumentParser(description="Compute commutator Δ and Z")
     ap.add_argument("--order-a", default="artifacts/order_A_to_B.npz")
@@ -75,7 +85,40 @@ def main():
     if cov_path.exists():
         C = np.load(cov_path)
         if C.shape[0] != C.shape[1] or C.shape[0] != delta.size:
-            raise ValueError(f"Covariance shape {C.shape} incompatible with delta {delta.shape}")
+            meta_a = _load_order_metadata(Path(args.order_a))
+            meta_b = _load_order_metadata(Path(args.order_b))
+            order_details = []
+            if meta_a:
+                order_details.append(
+                    f"{Path(args.order_a).name}: nbins={meta_a.get('nbins')} "
+                    f"nside={meta_a.get('nside')}"
+                )
+            if meta_b:
+                order_details.append(
+                    f"{Path(args.order_b).name}: nbins={meta_b.get('nbins')} "
+                    f"nside={meta_b.get('nside')}"
+                )
+            hint_lines = [
+                (
+                    "Ensure the null simulations and bandpower orderings use the same binning "
+                    "and mask."
+                ),
+                (
+                    "Re-run scripts/run_null_sims.py with the prereg configuration or CLI "
+                    "parameters that match your orderings."
+                ),
+                (
+                    "To reuse a legacy covariance produced with the CLI defaults, rerun both "
+                    "ordering scripts with --disable-prereg and matching --nlb/--lmax settings."
+                ),
+            ]
+            hint = " ".join(hint_lines)
+            context = "; ".join(order_details) if order_details else ""
+            if context:
+                hint = f"{hint} ({context})"
+            raise ValueError(
+                f"Covariance shape {C.shape} incompatible with delta {delta.shape}. {hint}"
+            )
         z = _stable_z(delta, C)
 
     summary = {

@@ -39,6 +39,11 @@ def main():
         default=Path("config/prereg.yaml"),
         help="Path to prereg YAML for bin configuration",
     )
+    ap.add_argument(
+        "--disable-prereg",
+        action="store_true",
+        help="Ignore prereg metadata and use CLI binning/mask parameters",
+    )
     ap.add_argument("--out", default="artifacts/order_A_to_B.npz")
     args = ap.parse_args()
 
@@ -64,12 +69,13 @@ def main():
     bins = None
     bins_meta = None
     windows_cfg: WindowConfig | None = None
-    try:
-        bins, bins_meta = load_bins_from_prereg(args.prereg, nside=nside)
-    except FileNotFoundError:
-        pass
-    except Exception as exc:  # pragma: no cover - keep fallback path available
-        summary_line(f"failed to load prereg bins: {exc}; falling back to CLI params")
+    if not args.disable_prereg:
+        try:
+            bins, bins_meta = load_bins_from_prereg(args.prereg, nside=nside)
+        except FileNotFoundError:
+            pass
+        except Exception as exc:  # pragma: no cover - keep fallback path available
+            summary_line(f"failed to load prereg bins: {exc}; falling back to CLI params")
 
     if bins is None:
         bins = nm_bins_from_params(
@@ -79,13 +85,14 @@ def main():
             nlb=args.nlb,
         )
 
-    try:
-        windows_cfg = load_windows_from_prereg(args.prereg)
-    except FileNotFoundError:
-        pass
-    except Exception as exc:  # pragma: no cover - keep CLI resilient
-        summary_line(f"failed to load window config: {exc}; using defaults")
-        windows_cfg = None
+    if not args.disable_prereg:
+        try:
+            windows_cfg = load_windows_from_prereg(args.prereg)
+        except FileNotFoundError:
+            pass
+        except Exception as exc:  # pragma: no cover - keep CLI resilient
+            summary_line(f"failed to load window config: {exc}; using defaults")
+            windows_cfg = None
 
     fallback_lmax: list[int | None] = []
     if args.lmax is not None:

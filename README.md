@@ -188,6 +188,12 @@ earlier.
    Inspect the terminal summary for the covariance size and record the
    random seed alongside the command in your lab notebook.
 
+   *Reusing legacy binning:* if you already have a long-running
+   covariance generated with the pre-preregistration CLI defaults (for
+   example, a 69×69 matrix from `--nlb 50`), rerun both ordering scripts
+   with `--disable-prereg` and matching `--nlb`/`--lmax` settings so the
+   Δ bandpowers align with that covariance.
+
 5. **Form the commutator residual and null statistic.**
    ```bash
    micromamba run -n comet python scripts/compute_commutator.py \
