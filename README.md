@@ -202,9 +202,12 @@ earlier.
      --cov artifacts/cov_delta_full.npy \
      --out-delta artifacts/delta_ell_full.npy \
      --out-summary artifacts/summary_full.json
-   ```
+  ```
    The resulting JSON contains the Δ vector length and the stabilized
-   χ ("z") statistic for the null test.
+   χ ("z") statistic for the null test. When reusing an older
+   covariance that has one or two extra high-ℓ bins, add
+   `--trim-covariance` to drop those trailing rows/columns so the
+   matrix matches the Δ bandpowers.
 
 6. **Assemble the science cross-spectrum.** Average the two orderings,
    compare to theory, and compute per-bin significances:

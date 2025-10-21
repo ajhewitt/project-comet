@@ -70,6 +70,15 @@ def main():
     ap.add_argument("--cov", default="artifacts/cov_delta.npy")
     ap.add_argument("--out-delta", default="artifacts/delta_ell.npy")
     ap.add_argument("--out-summary", default="artifacts/summary.json")
+    ap.add_argument(
+        "--trim-covariance",
+        action="store_true",
+        help=(
+            "Allow dropping trailing bins from a larger covariance matrix so it matches "
+            "the Δ bandpowers. Use only when you are certain the first bins share the "
+            "same geometry."
+        ),
+    )
     args = ap.parse_args()
 
     A = np.load(args.order_a)["cl"]
@@ -82,43 +91,57 @@ def main():
 
     z = None
     cov_path = Path(args.cov)
+    covariance_trimmed = False
     if cov_path.exists():
         C = np.load(cov_path)
-        if C.shape[0] != C.shape[1] or C.shape[0] != delta.size:
-            meta_a = _load_order_metadata(Path(args.order_a))
-            meta_b = _load_order_metadata(Path(args.order_b))
-            order_details = []
-            if meta_a:
-                order_details.append(
-                    f"{Path(args.order_a).name}: nbins={meta_a.get('nbins')} "
-                    f"nside={meta_a.get('nside')}"
+        if C.ndim != 2:
+            raise ValueError(f"Covariance must be 2-D; received array with shape {C.shape}")
+        if C.shape[0] != C.shape[1]:
+            raise ValueError(f"Covariance must be square; received shape {C.shape}")
+        if C.shape[0] != delta.size:
+            if args.trim_covariance and C.shape[0] > delta.size:
+                C = C[: delta.size, : delta.size]
+                covariance_trimmed = True
+            else:
+                meta_a = _load_order_metadata(Path(args.order_a))
+                meta_b = _load_order_metadata(Path(args.order_b))
+                order_details = []
+                if meta_a:
+                    order_details.append(
+                        f"{Path(args.order_a).name}: nbins={meta_a.get('nbins')} "
+                        f"nside={meta_a.get('nside')}"
+                    )
+                if meta_b:
+                    order_details.append(
+                        f"{Path(args.order_b).name}: nbins={meta_b.get('nbins')} "
+                        f"nside={meta_b.get('nside')}"
+                    )
+                hint_lines = [
+                    (
+                        "Ensure the null simulations and bandpower orderings use the same "
+                        "binning and mask."
+                    ),
+                    (
+                        "Re-run scripts/run_null_sims.py with the prereg configuration or CLI "
+                        "parameters that match your orderings."
+                    ),
+                    (
+                        "To reuse a legacy covariance produced with the CLI defaults, rerun both "
+                        "ordering scripts with --disable-prereg and matching --nlb/--lmax "
+                        "settings."
+                    ),
+                ]
+                hint = " ".join(hint_lines)
+                context = "; ".join(order_details) if order_details else ""
+                if context:
+                    hint = f"{hint} ({context})"
+                extra_hint = ""
+                if C.shape[0] > delta.size:
+                    extra_hint = " Pass --trim-covariance to drop unmatched high-ℓ bins."
+                raise ValueError(
+                    f"Covariance shape {C.shape} incompatible with delta {delta.shape}. "
+                    f"{hint}{extra_hint}"
                 )
-            if meta_b:
-                order_details.append(
-                    f"{Path(args.order_b).name}: nbins={meta_b.get('nbins')} "
-                    f"nside={meta_b.get('nside')}"
-                )
-            hint_lines = [
-                (
-                    "Ensure the null simulations and bandpower orderings use the same binning "
-                    "and mask."
-                ),
-                (
-                    "Re-run scripts/run_null_sims.py with the prereg configuration or CLI "
-                    "parameters that match your orderings."
-                ),
-                (
-                    "To reuse a legacy covariance produced with the CLI defaults, rerun both "
-                    "ordering scripts with --disable-prereg and matching --nlb/--lmax settings."
-                ),
-            ]
-            hint = " ".join(hint_lines)
-            context = "; ".join(order_details) if order_details else ""
-            if context:
-                hint = f"{hint} ({context})"
-            raise ValueError(
-                f"Covariance shape {C.shape} incompatible with delta {delta.shape}. {hint}"
-            )
         z = _stable_z(delta, C)
 
     summary = {
@@ -132,6 +155,7 @@ def main():
         "outputs": {
             "delta": args.out_delta,
         },
+        "covariance_trimmed": covariance_trimmed,
     }
     _save_json(summary, Path(args.out_summary))
     print(json.dumps({"msg": f"delta bins={delta.size} z={summary['z']}"}, sort_keys=True))
