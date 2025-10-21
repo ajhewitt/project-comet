@@ -15,6 +15,7 @@ from comet.simulations import (
 from comet.theory import load_theory
 from commutator_common import (
     build_mask,
+    load_bins_from_prereg,
     nm_bins_from_params,
     read_map,
     save_npy,
@@ -38,6 +39,19 @@ def main():
     ap.add_argument("--quick-nside", type=int, default=256)
     ap.add_argument("--nlb", type=int, default=50)
     ap.add_argument("--lmax", type=int, default=None)
+    ap.add_argument("--threshold-sigma", type=float, default=5.0)
+    ap.add_argument("--apod-arcmin", type=float, default=30.0)
+    ap.add_argument(
+        "--prereg",
+        type=Path,
+        default=Path("config/prereg.yaml"),
+        help="Path to prereg YAML for bin configuration",
+    )
+    ap.add_argument(
+        "--disable-prereg",
+        action="store_true",
+        help="Ignore prereg metadata and use CLI binning/mask parameters",
+    )
     ap.add_argument("--theory", type=Path, required=True, help="Path to theory Cl file (.npz/.txt)")
     ap.add_argument("--nsims", type=int, default=200)  # bumped for better conditioning
     ap.add_argument("--seed", type=int, default=1234)
@@ -51,8 +65,32 @@ def main():
     cmb = read_map(d / args.cmb, quick_nside=args.quick_nside)
     phi = read_map(d / args.phi, quick_nside=args.quick_nside)
     nside = hp.get_nside(cmb)
-    mask = (build_mask(cmb) * build_mask(phi)).astype(float)
-    bins = nm_bins_from_params(nside=nside, lmax=args.lmax, nlb=args.nlb)
+    mask = (
+        build_mask(
+            cmb,
+            threshold_sigma=args.threshold_sigma,
+            apod_arcmin=args.apod_arcmin,
+        )
+        * build_mask(
+            phi,
+            threshold_sigma=args.threshold_sigma,
+            apod_arcmin=args.apod_arcmin,
+        )
+    ).astype(float)
+    mask = np.clip(mask, 0.0, 1.0)
+
+    bins = None
+    bins_meta = None
+    if not args.disable_prereg:
+        try:
+            bins, bins_meta = load_bins_from_prereg(args.prereg, nside=nside)
+        except FileNotFoundError:
+            pass
+        except Exception as exc:  # pragma: no cover - keep CLI resilient
+            summary_line(f"failed to load prereg bins: {exc}; falling back to CLI params")
+
+    if bins is None:
+        bins = nm_bins_from_params(nside=nside, lmax=args.lmax, nlb=args.nlb)
 
     theory = load_theory(args.theory)
     sim_lmax, field_lmax = resolve_simulation_bandlimits(
@@ -60,6 +98,7 @@ def main():
         requested_lmax=args.lmax,
         theory_lmax=theory.lmax,
         nside=nside,
+        bins_meta=bins_meta,
     )
     geom = SimulationGeometry(
         mask=mask,
@@ -75,6 +114,7 @@ def main():
     summary_line(
         f"wrote {args.out_cov} with shape {cov.shape} nside={nside}"
         f" lmax={sim_lmax} field_lmax={field_lmax} nsims={args.nsims}"
+        f" bins={cov.shape[0]}"
     )
 
 

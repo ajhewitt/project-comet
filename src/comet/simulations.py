@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Mapping
 
 import numpy as np
 
@@ -47,6 +47,7 @@ def resolve_simulation_bandlimits(
     requested_lmax: int | None,
     theory_lmax: int | None,
     nside: int,
+    bins_meta: Mapping[str, Any] | None = None,
 ) -> tuple[int, int]:
     """Determine consistent simulation and field band-limits for NaMaster runs."""
 
@@ -56,6 +57,7 @@ def resolve_simulation_bandlimits(
     default_lmax = 3 * nside - 1
     bin_lmax = infer_bin_lmax(
         bins,
+        bins_meta=bins_meta,
         fallbacks=(requested_lmax, default_lmax, theory_lmax),
     )
 
