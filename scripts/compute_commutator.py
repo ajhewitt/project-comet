@@ -90,17 +90,13 @@ def main():
             order_details = []
             if meta_a:
                 order_details.append(
-                    (
-                        f"{Path(args.order_a).name}: nbins={meta_a.get('nbins')} "
-                        f"nside={meta_a.get('nside')}"
-                    )
+                    f"{Path(args.order_a).name}: nbins={meta_a.get('nbins')} "
+                    f"nside={meta_a.get('nside')}"
                 )
             if meta_b:
                 order_details.append(
-                    (
-                        f"{Path(args.order_b).name}: nbins={meta_b.get('nbins')} "
-                        f"nside={meta_b.get('nside')}"
-                    )
+                    f"{Path(args.order_b).name}: nbins={meta_b.get('nbins')} "
+                    f"nside={meta_b.get('nside')}"
                 )
             hint_lines = [
                 (
