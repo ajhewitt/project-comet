@@ -27,7 +27,7 @@ def _load_bin_info(
     fallback_nlb: int | None,
 ) -> _BinInfo:
     try:
-        bins, _meta = load_bins_from_prereg(prereg, nside=nside)
+        bins, bins_meta = load_bins_from_prereg(prereg, nside=nside)
     except FileNotFoundError:
         bins = None
     except Exception as exc:  # pragma: no cover - defensive fallback for CLI use
@@ -43,12 +43,23 @@ def _load_bin_info(
                     ell_lists.append(np.asarray(group, dtype=int))
             except Exception:  # pragma: no cover - guard against API mismatches
                 ell_lists = []
-        return _BinInfo(ell_effective=ell_eff, ell_lists=ell_lists)
+        if ell_eff.size == nbins:
+            return _BinInfo(ell_effective=ell_eff, ell_lists=ell_lists)
+
+        summary_line(
+            "prereg bin definition does not match input spectra; "
+            "falling back to CLI-provided binning"
+        )
+        if fallback_lmin is None and isinstance(bins_meta, dict):
+            fallback_lmin = bins_meta.get("lmin")
+        if fallback_nlb is None and isinstance(bins_meta, dict):
+            fallback_nlb = bins_meta.get("nlb")
 
     if fallback_nlb is None:
         raise ValueError("Prereg bins unavailable; please provide --nlb for fallback binning")
     if fallback_lmin is None:
-        raise ValueError("Prereg bins unavailable; please provide --lmin for fallback binning")
+        summary_line("no fallback lmin supplied; assuming lmin=0 for binning")
+        fallback_lmin = 0
 
     lmin = int(fallback_lmin)
     step = int(fallback_nlb)
@@ -137,12 +148,30 @@ def main(argv: Iterable[str] | None = None) -> int:
     nbins = cl_a.size
     nside = int(order_a.get("nside", order_b.get("nside", 0)))
 
+    def _extract_scalar(value: np.ndarray | None) -> int | None:
+        if value is None:
+            return None
+        try:
+            arr = np.asarray(value)
+        except Exception:
+            return None
+        if arr.size == 0:
+            return None
+        try:
+            return int(arr.ravel()[0])
+        except Exception:
+            return None
+
+    fallback_nlb = args.nlb
+    if fallback_nlb is None:
+        fallback_nlb = _extract_scalar(order_a.get("nlb")) or _extract_scalar(order_b.get("nlb"))
+
     info = _load_bin_info(
         args.prereg,
         nside=nside if nside > 0 else 256,
         nbins=nbins,
         fallback_lmin=args.lmin,
-        fallback_nlb=args.nlb,
+        fallback_nlb=fallback_nlb,
     )
 
     ell_eff = info.ell_effective
