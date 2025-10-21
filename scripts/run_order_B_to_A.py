@@ -139,6 +139,19 @@ def main():
     )
 
     lmin_used, lmax_used = _infer_bin_limits()
+    if lmin_used is None:
+        if args.lmin is not None:
+            lmin_used = int(args.lmin)
+        elif isinstance(bins_meta, Mapping) and "lmin" in bins_meta:
+            try:
+                lmin_used = int(bins_meta["lmin"])
+            except Exception:
+                lmin_used = None
+        if lmin_used is None:
+            # Mirror the implicit NaMaster behaviour of starting at ℓ=0 so the
+            # cross-spectrum step can fall back to linear binning even when
+            # preregistration metadata is absent.
+            lmin_used = 0
     payload: dict[str, object] = {"cl": cl, "nside": nside, "nlb": int(args.nlb)}
     if lmin_used is not None:
         payload["lmin"] = np.array(lmin_used, dtype=int)
