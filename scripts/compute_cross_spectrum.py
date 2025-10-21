@@ -50,16 +50,11 @@ def _load_bin_info(
             "prereg bin definition does not match input spectra; "
             "falling back to CLI-provided binning"
         )
-        if fallback_lmin is None and isinstance(bins_meta, dict):
-            fallback_lmin = bins_meta.get("lmin")
-        if fallback_nlb is None and isinstance(bins_meta, dict):
-            fallback_nlb = bins_meta.get("nlb")
 
     if fallback_nlb is None:
         raise ValueError("Prereg bins unavailable; please provide --nlb for fallback binning")
     if fallback_lmin is None:
-        summary_line("no fallback lmin supplied; assuming lmin=0 for binning")
-        fallback_lmin = 0
+        raise ValueError("Prereg bins unavailable; please provide --lmin for fallback binning")
 
     lmin = int(fallback_lmin)
     step = int(fallback_nlb)

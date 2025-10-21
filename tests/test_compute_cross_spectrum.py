@@ -85,3 +85,32 @@ def test_compute_cross_spectrum_outputs(tmp_path, monkeypatch):
     summary_payload = json.loads(summary.read_text())
     assert summary_payload["nbins"] == 3
     assert messages and "cross-spectrum" in messages[-1]
+
+
+def test_compute_cross_spectrum_requires_lmin_when_falling_back(tmp_path):
+    module = _load_script_module(
+        "compute_cross_spectrum", Path("scripts/compute_cross_spectrum.py")
+    )
+
+    cl = np.array([1.0, 2.0, 3.0], dtype=float)
+    order = tmp_path / "order.npz"
+    np.savez(order, cl=cl, nside=256, nlb=10)
+
+    theory_path = tmp_path / "theory.npz"
+    np.savez(theory_path, ell=np.arange(0, 40, dtype=float), cl_tk=0.05 * np.arange(0, 40))
+
+    with pytest.raises(ValueError, match="provide --lmin"):
+        module.main(
+            [
+                "--order-a",
+                str(order),
+                "--order-b",
+                str(order),
+                "--theory",
+                str(theory_path),
+                "--prereg",
+                str(tmp_path / "missing_prereg.yaml"),
+                "--nlb",
+                "10",
+            ]
+        )

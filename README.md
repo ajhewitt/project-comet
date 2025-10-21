@@ -216,12 +216,16 @@ earlier.
      --order-a artifacts/order_A_to_B_full.npz \
      --order-b artifacts/order_B_to_A_full.npz \
      --theory data/theory/tk_planck2018.npz \
+     --lmin 30 \
+     --nlb 30 \
      --cov artifacts/cov_delta_full.npy \
      --out artifacts/cross_tk_full.npz \
      --summary artifacts/cross_summary_full.json
    ```
-   Check `artifacts/cross_summary_full.json` to confirm the mean and
-   maximum |z| are consistent with a null detection.
+   The explicit `--lmin`/`--nlb` values ensure the theory is binned with
+   the same geometry as the commutator runs when the preregistration
+   metadata diverges. Check `artifacts/cross_summary_full.json` to confirm
+   the mean and maximum |z| are consistent with a null detection.
 
 7. **Generate publication figures and a textual digest.**
    ```bash
