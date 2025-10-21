@@ -90,18 +90,33 @@ def main():
             order_details = []
             if meta_a:
                 order_details.append(
-                    f"{Path(args.order_a).name}: nbins={meta_a.get('nbins')} nside={meta_a.get('nside')}"
+                    (
+                        f"{Path(args.order_a).name}: nbins={meta_a.get('nbins')} "
+                        f"nside={meta_a.get('nside')}"
+                    )
                 )
             if meta_b:
                 order_details.append(
-                    f"{Path(args.order_b).name}: nbins={meta_b.get('nbins')} nside={meta_b.get('nside')}"
+                    (
+                        f"{Path(args.order_b).name}: nbins={meta_b.get('nbins')} "
+                        f"nside={meta_b.get('nside')}"
+                    )
                 )
-            hint = (
-                "Ensure the null simulations and bandpower orderings use the same binning and mask. "
-                "Re-run scripts/run_null_sims.py with the prereg configuration or CLI parameters "
-                "that match your orderings. To reuse a legacy covariance produced with the CLI defaults, "
-                "rerun both ordering scripts with --disable-prereg (and matching --nlb/--lmax settings)."
-            )
+            hint_lines = [
+                (
+                    "Ensure the null simulations and bandpower orderings use the same binning "
+                    "and mask."
+                ),
+                (
+                    "Re-run scripts/run_null_sims.py with the prereg configuration or CLI "
+                    "parameters that match your orderings."
+                ),
+                (
+                    "To reuse a legacy covariance produced with the CLI defaults, rerun both "
+                    "ordering scripts with --disable-prereg and matching --nlb/--lmax settings."
+                ),
+            ]
+            hint = " ".join(hint_lines)
             context = "; ".join(order_details) if order_details else ""
             if context:
                 hint = f"{hint} ({context})"
