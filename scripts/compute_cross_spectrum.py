@@ -2,7 +2,7 @@
 
 import argparse
 import json
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -115,6 +115,49 @@ def _bin_theory(
     return np.zeros(0, dtype=float)
 
 
+def _extract_scalar(value: object) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    if isinstance(value, (float, np.floating)):
+        if np.isnan(value):
+            return None
+        return int(value)
+    try:
+        arr = np.asarray(value)
+    except Exception:
+        return None
+    if arr.size == 0:
+        return None
+    try:
+        return int(arr.reshape(-1)[0])
+    except Exception:
+        return None
+
+
+def _load_order_metadata(order_path: Path) -> Mapping[str, object]:
+    meta_path = order_path.with_suffix(".json")
+    if not meta_path.exists():
+        return {}
+    try:
+        return json.loads(meta_path.read_text())
+    except Exception as exc:  # pragma: no cover - metadata is optional for CLI use
+        summary_line(f"failed to parse {meta_path.name}: {exc}; ignoring metadata")
+        return {}
+
+
+def _extract_from_metadata(meta: Mapping[str, object], key: str) -> object | None:
+    if not isinstance(meta, Mapping):
+        return None
+    if key in meta:
+        return meta[key]
+    bins = meta.get("bins")
+    if isinstance(bins, Mapping) and key in bins:
+        return bins[key]
+    return None
+
+
 def main(argv: Iterable[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Build the T×κ cross-spectrum science product")
     ap.add_argument("--order-a", default="artifacts/order_A_to_B.npz")
@@ -143,29 +186,33 @@ def main(argv: Iterable[str] | None = None) -> int:
     nbins = cl_a.size
     nside = int(order_a.get("nside", order_b.get("nside", 0)))
 
-    def _extract_scalar(value: np.ndarray | None) -> int | None:
-        if value is None:
-            return None
-        try:
-            arr = np.asarray(value)
-        except Exception:
-            return None
-        if arr.size == 0:
-            return None
-        try:
-            return int(arr.ravel()[0])
-        except Exception:
-            return None
-
     fallback_nlb = args.nlb
     if fallback_nlb is None:
         fallback_nlb = _extract_scalar(order_a.get("nlb")) or _extract_scalar(order_b.get("nlb"))
+    meta_a: Mapping[str, object] | None = None
+    meta_b: Mapping[str, object] | None = None
+    if fallback_nlb is None or args.lmin is None:
+        meta_a = _load_order_metadata(Path(args.order_a))
+        meta_b = _load_order_metadata(Path(args.order_b))
+
+    if fallback_nlb is None:
+        fallback_nlb = _extract_scalar(_extract_from_metadata(meta_a or {}, "nlb")) or _extract_scalar(
+            _extract_from_metadata(meta_b or {}, "nlb")
+        )
+
+    fallback_lmin = args.lmin
+    if fallback_lmin is None:
+        fallback_lmin = _extract_scalar(order_a.get("lmin")) or _extract_scalar(order_b.get("lmin"))
+    if fallback_lmin is None and meta_a is not None and meta_b is not None:
+        fallback_lmin = _extract_scalar(_extract_from_metadata(meta_a, "lmin")) or _extract_scalar(
+            _extract_from_metadata(meta_b, "lmin")
+        )
 
     info = _load_bin_info(
         args.prereg,
         nside=nside if nside > 0 else 256,
         nbins=nbins,
-        fallback_lmin=args.lmin,
+        fallback_lmin=fallback_lmin,
         fallback_nlb=fallback_nlb,
     )
 

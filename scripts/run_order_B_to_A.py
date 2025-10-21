@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 from pathlib import Path
 
 import healpy as hp
@@ -85,6 +86,30 @@ def main():
             nlb=args.nlb,
         )
 
+    def _infer_bin_limits() -> tuple[int | None, int | None]:
+        lmin_val = getattr(bins, "lmin", None)
+        lmax_val = getattr(bins, "lmax", None)
+        ell_list = getattr(bins, "get_ell_list", None)
+        if callable(ell_list):
+            try:
+                groups = list(ell_list())
+            except Exception:
+                groups = []
+            for group in groups:
+                arr = np.asarray(group, dtype=int)
+                if arr.size:
+                    lmin_val = int(arr[0])
+                    break
+            for group in reversed(groups):
+                arr = np.asarray(group, dtype=int)
+                if arr.size:
+                    lmax_val = int(arr[-1])
+                    break
+        return (
+            None if lmin_val is None else int(lmin_val),
+            None if lmax_val is None else int(lmax_val),
+        )
+
     if not args.disable_prereg:
         try:
             windows_cfg = load_windows_from_prereg(args.prereg)
@@ -113,7 +138,25 @@ def main():
         field_names=("phi", "cmb"),
     )
 
-    np.savez(Path(args.out), cl=cl, nside=nside, nlb=args.nlb)
+    lmin_used, lmax_used = _infer_bin_limits()
+    payload: dict[str, object] = {"cl": cl, "nside": nside, "nlb": int(args.nlb)}
+    if lmin_used is not None:
+        payload["lmin"] = np.array(lmin_used, dtype=int)
+    if lmax_used is not None:
+        payload["lmax"] = np.array(lmax_used, dtype=int)
+    np.savez(Path(args.out), **payload)
+
+    bins_summary: dict[str, object] = {}
+    if isinstance(bins_meta, Mapping):
+        bins_summary.update({k: v for k, v in bins_meta.items()})
+    if lmin_used is not None and "lmin" not in bins_summary:
+        bins_summary["lmin"] = int(lmin_used)
+    if lmax_used is not None and "lmax" not in bins_summary:
+        bins_summary["lmax"] = int(lmax_used)
+    if "nlb" not in bins_summary:
+        bins_summary["nlb"] = int(args.nlb)
+    bins_summary["nbins"] = int(cl.size)
+
     save_json(
         {
             "order": "B_to_A",
@@ -122,7 +165,7 @@ def main():
             "mask_threshold_sigma": args.threshold_sigma,
             "mask_apod_arcmin": args.apod_arcmin,
             "bins_source": "prereg" if bins_meta is not None else "cli",
-            "bins": bins_meta,
+            "bins": bins_summary,
             "windows": windows_cfg.to_metadata() if windows_cfg is not None else None,
         },
         Path(args.out).with_suffix(".json"),

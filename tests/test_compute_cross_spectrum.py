@@ -28,8 +28,8 @@ def test_compute_cross_spectrum_outputs(tmp_path, monkeypatch):
     cl_b = np.array([1.2, 1.8, 3.2], dtype=float)
     order_a = tmp_path / "order_a.npz"
     order_b = tmp_path / "order_b.npz"
-    np.savez(order_a, cl=cl_a, nside=256)
-    np.savez(order_b, cl=cl_b, nside=256)
+    np.savez(order_a, cl=cl_a, nside=256, nlb=5, lmin=10)
+    np.savez(order_b, cl=cl_b, nside=256, nlb=5, lmin=10)
 
     diag = np.array([0.25, 0.16, 0.09], dtype=float)
     cov = tmp_path / "cov.npy"
@@ -60,10 +60,6 @@ def test_compute_cross_spectrum_outputs(tmp_path, monkeypatch):
             str(theory_path),
             "--prereg",
             str(tmp_path / "missing_prereg.yaml"),
-            "--lmin",
-            "10",
-            "--nlb",
-            "5",
             "--cov",
             str(cov),
             "--out",
@@ -114,3 +110,39 @@ def test_compute_cross_spectrum_requires_lmin_when_falling_back(tmp_path):
                 "10",
             ]
         )
+
+
+def test_compute_cross_spectrum_reads_lmin_from_json_metadata(tmp_path):
+    module = _load_script_module(
+        "compute_cross_spectrum", Path("scripts/compute_cross_spectrum.py")
+    )
+
+    cl = np.array([1.0, 2.0, 3.0], dtype=float)
+    order = tmp_path / "order.npz"
+    np.savez(order, cl=cl, nside=256, nlb=5)
+    (order.with_suffix(".json")).write_text(json.dumps({"bins": {"lmin": 0, "nlb": 5}}))
+
+    theory_path = tmp_path / "theory.npz"
+    np.savez(theory_path, ell=np.arange(0, 40, dtype=float), cl_tk=0.05 * np.arange(0, 40))
+
+    out = tmp_path / "cross.npz"
+    summary = tmp_path / "summary.json"
+    module.main(
+        [
+            "--order-a",
+            str(order),
+            "--order-b",
+            str(order),
+            "--theory",
+            str(theory_path),
+            "--prereg",
+            str(tmp_path / "missing_prereg.yaml"),
+            "--out",
+            str(out),
+            "--summary",
+            str(summary),
+        ]
+    )
+
+    data = np.load(out)
+    np.testing.assert_allclose(data["ell"], np.array([2.0, 7.0, 12.0]))
