@@ -18,6 +18,58 @@ class _BinInfo:
     ell_lists: list[np.ndarray]
 
 
+def _bin_info_from_orders(
+    orders: Sequence[np.lib.npyio.NpzFile],
+    nbins: int,
+) -> _BinInfo | None:
+    for order in orders:
+        ell_eff_raw = order.get("ell_effective")
+        ell_left = order.get("ell_left_edges")
+        ell_right = order.get("ell_right_edges")
+
+        ell_lists: list[np.ndarray] = []
+        lists_valid = True
+        if ell_left is not None and ell_right is not None:
+            left = np.asarray(ell_left, dtype=int)
+            right = np.asarray(ell_right, dtype=int)
+            if left.shape == right.shape and left.shape[0] == nbins:
+                for lo, hi in zip(left, right):
+                    lo_i = int(lo)
+                    hi_i = int(hi)
+                    if hi_i > lo_i >= 0:
+                        ell_lists.append(np.arange(lo_i, hi_i))
+                    else:
+                        lists_valid = False
+                        break
+            else:
+                lists_valid = False
+        else:
+            lists_valid = False
+
+        if not lists_valid or len(ell_lists) != nbins:
+            ell_lists = []
+
+        ell_eff = None
+        if ell_eff_raw is not None:
+            ell_eff = np.asarray(ell_eff_raw, dtype=float)
+            if ell_eff.size != nbins:
+                ell_eff = None
+
+        if ell_eff is None and ell_lists and len(ell_lists) == nbins:
+            ell_eff = np.asarray(
+                [
+                    0.5 * (float(group[0]) + float(group[-1])) if group.size else 0.0
+                    for group in ell_lists
+                ],
+                dtype=float,
+            )
+
+        if ell_eff is not None and ell_eff.size == nbins:
+            return _BinInfo(ell_effective=ell_eff, ell_lists=ell_lists)
+
+    return None
+
+
 def _load_bin_info(
     prereg: Path,
     *,
@@ -186,35 +238,37 @@ def main(argv: Iterable[str] | None = None) -> int:
     nbins = cl_a.size
     nside = int(order_a.get("nside", order_b.get("nside", 0)))
 
-    fallback_nlb = args.nlb
-    if fallback_nlb is None:
-        fallback_nlb = _extract_scalar(order_a.get("nlb")) or _extract_scalar(order_b.get("nlb"))
-    meta_a: Mapping[str, object] | None = None
-    meta_b: Mapping[str, object] | None = None
-    if fallback_nlb is None or args.lmin is None:
-        meta_a = _load_order_metadata(Path(args.order_a))
-        meta_b = _load_order_metadata(Path(args.order_b))
+    info = _bin_info_from_orders((order_a, order_b), nbins)
+    if info is None:
+        fallback_nlb = args.nlb
+        if fallback_nlb is None:
+            fallback_nlb = _extract_scalar(order_a.get("nlb")) or _extract_scalar(order_b.get("nlb"))
+        meta_a: Mapping[str, object] | None = None
+        meta_b: Mapping[str, object] | None = None
+        if fallback_nlb is None or args.lmin is None:
+            meta_a = _load_order_metadata(Path(args.order_a))
+            meta_b = _load_order_metadata(Path(args.order_b))
 
-    if fallback_nlb is None:
-        fallback_nlb = _extract_scalar(_extract_from_metadata(meta_a or {}, "nlb")) or _extract_scalar(
-            _extract_from_metadata(meta_b or {}, "nlb")
+        if fallback_nlb is None:
+            fallback_nlb = _extract_scalar(
+                _extract_from_metadata(meta_a or {}, "nlb")
+            ) or _extract_scalar(_extract_from_metadata(meta_b or {}, "nlb"))
+
+        fallback_lmin = args.lmin
+        if fallback_lmin is None:
+            fallback_lmin = _extract_scalar(order_a.get("lmin")) or _extract_scalar(order_b.get("lmin"))
+        if fallback_lmin is None and meta_a is not None and meta_b is not None:
+            fallback_lmin = _extract_scalar(
+                _extract_from_metadata(meta_a, "lmin")
+            ) or _extract_scalar(_extract_from_metadata(meta_b, "lmin"))
+
+        info = _load_bin_info(
+            args.prereg,
+            nside=nside if nside > 0 else 256,
+            nbins=nbins,
+            fallback_lmin=fallback_lmin,
+            fallback_nlb=fallback_nlb,
         )
-
-    fallback_lmin = args.lmin
-    if fallback_lmin is None:
-        fallback_lmin = _extract_scalar(order_a.get("lmin")) or _extract_scalar(order_b.get("lmin"))
-    if fallback_lmin is None and meta_a is not None and meta_b is not None:
-        fallback_lmin = _extract_scalar(_extract_from_metadata(meta_a, "lmin")) or _extract_scalar(
-            _extract_from_metadata(meta_b, "lmin")
-        )
-
-    info = _load_bin_info(
-        args.prereg,
-        nside=nside if nside > 0 else 256,
-        nbins=nbins,
-        fallback_lmin=fallback_lmin,
-        fallback_nlb=fallback_nlb,
-    )
 
     ell_eff = info.ell_effective
     cl_data = 0.5 * (cl_a + cl_b)

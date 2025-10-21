@@ -69,6 +69,8 @@ def main():
 
     bins = None
     bins_meta = None
+    bins_ell_groups: list[np.ndarray] = []
+    ell_effective: np.ndarray | None = None
     windows_cfg: WindowConfig | None = None
     if not args.disable_prereg:
         try:
@@ -86,25 +88,31 @@ def main():
             nlb=args.nlb,
         )
 
+    if hasattr(bins, "get_effective_ells"):
+        try:
+            ell_effective = np.asarray(bins.get_effective_ells(), dtype=float)
+        except Exception:
+            ell_effective = None
+
+    if hasattr(bins, "get_ell_list"):
+        try:
+            bins_ell_groups = [np.asarray(group, dtype=int) for group in bins.get_ell_list()]
+        except Exception:
+            bins_ell_groups = []
+
     def _infer_bin_limits() -> tuple[int | None, int | None]:
         lmin_val = getattr(bins, "lmin", None)
         lmax_val = getattr(bins, "lmax", None)
-        ell_list = getattr(bins, "get_ell_list", None)
-        if callable(ell_list):
-            try:
-                groups = list(ell_list())
-            except Exception:
-                groups = []
-            for group in groups:
-                arr = np.asarray(group, dtype=int)
-                if arr.size:
-                    lmin_val = int(arr[0])
-                    break
-            for group in reversed(groups):
-                arr = np.asarray(group, dtype=int)
-                if arr.size:
-                    lmax_val = int(arr[-1])
-                    break
+        for group in bins_ell_groups:
+            arr = np.asarray(group, dtype=int)
+            if arr.size:
+                lmin_val = int(arr[0])
+                break
+        for group in reversed(bins_ell_groups):
+            arr = np.asarray(group, dtype=int)
+            if arr.size:
+                lmax_val = int(arr[-1])
+                break
         return (
             None if lmin_val is None else int(lmin_val),
             None if lmax_val is None else int(lmax_val),
@@ -153,11 +161,33 @@ def main():
             # downstream stages can always reconstruct the band edges when
             # preregistered metadata is unavailable.
             lmin_used = 0
-    payload: dict[str, object] = {"cl": cl, "nside": nside, "nlb": int(args.nlb)}
+    bin_left_edges: np.ndarray | None = None
+    bin_right_edges: np.ndarray | None = None
+    if bins_ell_groups and len(bins_ell_groups) == cl.size:
+        bin_left_edges = np.full(cl.size, -1, dtype=int)
+        bin_right_edges = np.full(cl.size, -1, dtype=int)
+        for idx, group in enumerate(bins_ell_groups):
+            if group.size:
+                bin_left_edges[idx] = int(group[0])
+                bin_right_edges[idx] = int(group[-1]) + 1
+
+    nlb_value = int(args.nlb)
+    if isinstance(bins_meta, Mapping) and "nlb" in bins_meta:
+        try:
+            nlb_value = int(bins_meta["nlb"])
+        except Exception:
+            nlb_value = int(args.nlb)
+
+    payload: dict[str, object] = {"cl": cl, "nside": nside, "nlb": np.array(nlb_value, dtype=int)}
     if lmin_used is not None:
         payload["lmin"] = np.array(lmin_used, dtype=int)
     if lmax_used is not None:
         payload["lmax"] = np.array(lmax_used, dtype=int)
+    if ell_effective is not None and ell_effective.size == cl.size:
+        payload["ell_effective"] = ell_effective.astype(float)
+    if bin_left_edges is not None and bin_right_edges is not None:
+        payload["ell_left_edges"] = bin_left_edges
+        payload["ell_right_edges"] = bin_right_edges
     np.savez(Path(args.out), **payload)
 
     bins_summary: dict[str, object] = {}
@@ -170,6 +200,16 @@ def main():
     if "nlb" not in bins_summary:
         bins_summary["nlb"] = int(args.nlb)
     bins_summary["nbins"] = int(cl.size)
+    if ell_effective is not None and ell_effective.size == cl.size and "ell_effective" not in bins_summary:
+        bins_summary["ell_effective"] = ell_effective.astype(float).tolist()
+    if (
+        bin_left_edges is not None
+        and bin_right_edges is not None
+        and "ell_left_edges" not in bins_summary
+        and "ell_right_edges" not in bins_summary
+    ):
+        bins_summary["ell_left_edges"] = bin_left_edges.astype(int).tolist()
+        bins_summary["ell_right_edges"] = bin_right_edges.astype(int).tolist()
 
     save_json(
         {
