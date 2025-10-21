@@ -188,6 +188,12 @@ earlier.
    Inspect the terminal summary for the covariance size and record the
    random seed alongside the command in your lab notebook.
 
+   *Reusing legacy binning:* if you already have a long-running
+   covariance generated with the pre-preregistration CLI defaults (for
+   example, a 69×69 matrix from `--nlb 50`), rerun both ordering scripts
+   with `--disable-prereg` and matching `--nlb`/`--lmax` settings so the
+   Δ bandpowers align with that covariance.
+
 5. **Form the commutator residual and null statistic.**
    ```bash
    micromamba run -n comet python scripts/compute_commutator.py \
@@ -196,9 +202,12 @@ earlier.
      --cov artifacts/cov_delta_full.npy \
      --out-delta artifacts/delta_ell_full.npy \
      --out-summary artifacts/summary_full.json
-   ```
+  ```
    The resulting JSON contains the Δ vector length and the stabilized
-   χ ("z") statistic for the null test.
+   χ ("z") statistic for the null test. When reusing an older
+   covariance that has one or two extra high-ℓ bins, add
+   `--trim-covariance` to drop those trailing rows/columns so the
+   matrix matches the Δ bandpowers.
 
 6. **Assemble the science cross-spectrum.** Average the two orderings,
    compare to theory, and compute per-bin significances:
