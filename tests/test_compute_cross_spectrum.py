@@ -160,6 +160,9 @@ def test_compute_cross_spectrum_reads_lmin_from_json_metadata(tmp_path):
         cl_tk=0.05 * ell,
     )
 
+    cov = tmp_path / "cov.npy"
+    np.save(cov, np.eye(3, dtype=float))
+
     out = tmp_path / "cross.npz"
     summary = tmp_path / "summary.json"
     module.main(
@@ -172,6 +175,8 @@ def test_compute_cross_spectrum_reads_lmin_from_json_metadata(tmp_path):
             str(theory_path),
             "--prereg",
             str(tmp_path / "missing_prereg.yaml"),
+            "--cov",
+            str(cov),
             "--out",
             str(out),
             "--summary",
@@ -209,6 +214,9 @@ def test_compute_cross_spectrum_recovers_geometry_from_edges(tmp_path):
         cl_tk=0.05 * ell,
     )
 
+    cov = tmp_path / "cov.npy"
+    np.save(cov, np.eye(3, dtype=float))
+
     out = tmp_path / "cross.npz"
     summary = tmp_path / "summary.json"
     module.main(
@@ -221,6 +229,8 @@ def test_compute_cross_spectrum_recovers_geometry_from_edges(tmp_path):
             str(theory_path),
             "--prereg",
             str(tmp_path / "missing_prereg.yaml"),
+            "--cov",
+            str(cov),
             "--out",
             str(out),
             "--summary",
