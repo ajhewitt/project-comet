@@ -242,7 +242,9 @@ def main(argv: Iterable[str] | None = None) -> int:
     if info is None:
         fallback_nlb = args.nlb
         if fallback_nlb is None:
-            fallback_nlb = _extract_scalar(order_a.get("nlb")) or _extract_scalar(order_b.get("nlb"))
+            fallback_nlb = _extract_scalar(order_a.get("nlb")) or _extract_scalar(
+                order_b.get("nlb")
+            )
         meta_a: Mapping[str, object] | None = None
         meta_b: Mapping[str, object] | None = None
         if fallback_nlb is None or args.lmin is None:
@@ -256,7 +258,9 @@ def main(argv: Iterable[str] | None = None) -> int:
 
         fallback_lmin = args.lmin
         if fallback_lmin is None:
-            fallback_lmin = _extract_scalar(order_a.get("lmin")) or _extract_scalar(order_b.get("lmin"))
+            fallback_lmin = _extract_scalar(order_a.get("lmin")) or _extract_scalar(
+                order_b.get("lmin")
+            )
         if fallback_lmin is None and meta_a is not None and meta_b is not None:
             fallback_lmin = _extract_scalar(
                 _extract_from_metadata(meta_a, "lmin")

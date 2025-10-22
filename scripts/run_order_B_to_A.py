@@ -199,7 +199,11 @@ def main():
     if "nlb" not in bins_summary:
         bins_summary["nlb"] = int(args.nlb)
     bins_summary["nbins"] = int(cl.size)
-    if ell_effective is not None and ell_effective.size == cl.size and "ell_effective" not in bins_summary:
+    if (
+        ell_effective is not None
+        and ell_effective.size == cl.size
+        and "ell_effective" not in bins_summary
+    ):
         bins_summary["ell_effective"] = ell_effective.astype(float).tolist()
     if (
         bin_left_edges is not None
