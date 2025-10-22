@@ -2,7 +2,7 @@
 
 import argparse
 import json
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,6 +18,58 @@ class _BinInfo:
     ell_lists: list[np.ndarray]
 
 
+def _bin_info_from_orders(
+    orders: Sequence[np.lib.npyio.NpzFile],
+    nbins: int,
+) -> _BinInfo | None:
+    for order in orders:
+        ell_eff_raw = order.get("ell_effective")
+        ell_left = order.get("ell_left_edges")
+        ell_right = order.get("ell_right_edges")
+
+        ell_lists: list[np.ndarray] = []
+        lists_valid = True
+        if ell_left is not None and ell_right is not None:
+            left = np.asarray(ell_left, dtype=int)
+            right = np.asarray(ell_right, dtype=int)
+            if left.shape == right.shape and left.shape[0] == nbins:
+                for lo, hi in zip(left, right):
+                    lo_i = int(lo)
+                    hi_i = int(hi)
+                    if hi_i > lo_i >= 0:
+                        ell_lists.append(np.arange(lo_i, hi_i))
+                    else:
+                        lists_valid = False
+                        break
+            else:
+                lists_valid = False
+        else:
+            lists_valid = False
+
+        if not lists_valid or len(ell_lists) != nbins:
+            ell_lists = []
+
+        ell_eff = None
+        if ell_eff_raw is not None:
+            ell_eff = np.asarray(ell_eff_raw, dtype=float)
+            if ell_eff.size != nbins:
+                ell_eff = None
+
+        if ell_eff is None and ell_lists and len(ell_lists) == nbins:
+            ell_eff = np.asarray(
+                [
+                    0.5 * (float(group[0]) + float(group[-1])) if group.size else 0.0
+                    for group in ell_lists
+                ],
+                dtype=float,
+            )
+
+        if ell_eff is not None and ell_eff.size == nbins:
+            return _BinInfo(ell_effective=ell_eff, ell_lists=ell_lists)
+
+    return None
+
+
 def _load_bin_info(
     prereg: Path,
     *,
@@ -27,7 +79,7 @@ def _load_bin_info(
     fallback_nlb: int | None,
 ) -> _BinInfo:
     try:
-        bins, _meta = load_bins_from_prereg(prereg, nside=nside)
+        bins, bins_meta = load_bins_from_prereg(prereg, nside=nside)
     except FileNotFoundError:
         bins = None
     except Exception as exc:  # pragma: no cover - defensive fallback for CLI use
@@ -43,7 +95,13 @@ def _load_bin_info(
                     ell_lists.append(np.asarray(group, dtype=int))
             except Exception:  # pragma: no cover - guard against API mismatches
                 ell_lists = []
-        return _BinInfo(ell_effective=ell_eff, ell_lists=ell_lists)
+        if ell_eff.size == nbins:
+            return _BinInfo(ell_effective=ell_eff, ell_lists=ell_lists)
+
+        summary_line(
+            "prereg bin definition does not match input spectra; "
+            "falling back to CLI-provided binning"
+        )
 
     if fallback_nlb is None:
         raise ValueError("Prereg bins unavailable; please provide --nlb for fallback binning")
@@ -109,6 +167,49 @@ def _bin_theory(
     return np.zeros(0, dtype=float)
 
 
+def _extract_scalar(value: object) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    if isinstance(value, (float, np.floating)):
+        if np.isnan(value):
+            return None
+        return int(value)
+    try:
+        arr = np.asarray(value)
+    except Exception:
+        return None
+    if arr.size == 0:
+        return None
+    try:
+        return int(arr.reshape(-1)[0])
+    except Exception:
+        return None
+
+
+def _load_order_metadata(order_path: Path) -> Mapping[str, object]:
+    meta_path = order_path.with_suffix(".json")
+    if not meta_path.exists():
+        return {}
+    try:
+        return json.loads(meta_path.read_text())
+    except Exception as exc:  # pragma: no cover - metadata is optional for CLI use
+        summary_line(f"failed to parse {meta_path.name}: {exc}; ignoring metadata")
+        return {}
+
+
+def _extract_from_metadata(meta: Mapping[str, object], key: str) -> object | None:
+    if not isinstance(meta, Mapping):
+        return None
+    if key in meta:
+        return meta[key]
+    bins = meta.get("bins")
+    if isinstance(bins, Mapping) and key in bins:
+        return bins[key]
+    return None
+
+
 def main(argv: Iterable[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Build the T×κ cross-spectrum science product")
     ap.add_argument("--order-a", default="artifacts/order_A_to_B.npz")
@@ -137,13 +238,41 @@ def main(argv: Iterable[str] | None = None) -> int:
     nbins = cl_a.size
     nside = int(order_a.get("nside", order_b.get("nside", 0)))
 
-    info = _load_bin_info(
-        args.prereg,
-        nside=nside if nside > 0 else 256,
-        nbins=nbins,
-        fallback_lmin=args.lmin,
-        fallback_nlb=args.nlb,
-    )
+    info = _bin_info_from_orders((order_a, order_b), nbins)
+    if info is None:
+        fallback_nlb = args.nlb
+        if fallback_nlb is None:
+            fallback_nlb = _extract_scalar(order_a.get("nlb")) or _extract_scalar(
+                order_b.get("nlb")
+            )
+        meta_a: Mapping[str, object] | None = None
+        meta_b: Mapping[str, object] | None = None
+        if fallback_nlb is None or args.lmin is None:
+            meta_a = _load_order_metadata(Path(args.order_a))
+            meta_b = _load_order_metadata(Path(args.order_b))
+
+        if fallback_nlb is None:
+            fallback_nlb = _extract_scalar(
+                _extract_from_metadata(meta_a or {}, "nlb")
+            ) or _extract_scalar(_extract_from_metadata(meta_b or {}, "nlb"))
+
+        fallback_lmin = args.lmin
+        if fallback_lmin is None:
+            fallback_lmin = _extract_scalar(order_a.get("lmin")) or _extract_scalar(
+                order_b.get("lmin")
+            )
+        if fallback_lmin is None and meta_a is not None and meta_b is not None:
+            fallback_lmin = _extract_scalar(
+                _extract_from_metadata(meta_a, "lmin")
+            ) or _extract_scalar(_extract_from_metadata(meta_b, "lmin"))
+
+        info = _load_bin_info(
+            args.prereg,
+            nside=nside if nside > 0 else 256,
+            nbins=nbins,
+            fallback_lmin=fallback_lmin,
+            fallback_nlb=fallback_nlb,
+        )
 
     ell_eff = info.ell_effective
     cl_data = 0.5 * (cl_a + cl_b)

@@ -26,10 +26,31 @@ def test_compute_cross_spectrum_outputs(tmp_path, monkeypatch):
 
     cl_a = np.array([1.0, 2.0, 3.0], dtype=float)
     cl_b = np.array([1.2, 1.8, 3.2], dtype=float)
+    ell_left = np.array([10, 15, 20], dtype=int)
+    ell_right = np.array([15, 20, 25], dtype=int)
+    ell_eff = np.array([12.0, 17.0, 22.0], dtype=float)
     order_a = tmp_path / "order_a.npz"
     order_b = tmp_path / "order_b.npz"
-    np.savez(order_a, cl=cl_a, nside=256)
-    np.savez(order_b, cl=cl_b, nside=256)
+    np.savez(
+        order_a,
+        cl=cl_a,
+        nside=256,
+        nlb=5,
+        lmin=10,
+        ell_left_edges=ell_left,
+        ell_right_edges=ell_right,
+        ell_effective=ell_eff,
+    )
+    np.savez(
+        order_b,
+        cl=cl_b,
+        nside=256,
+        nlb=5,
+        lmin=10,
+        ell_left_edges=ell_left,
+        ell_right_edges=ell_right,
+        ell_effective=ell_eff,
+    )
 
     diag = np.array([0.25, 0.16, 0.09], dtype=float)
     cov = tmp_path / "cov.npy"
@@ -60,10 +81,6 @@ def test_compute_cross_spectrum_outputs(tmp_path, monkeypatch):
             str(theory_path),
             "--prereg",
             str(tmp_path / "missing_prereg.yaml"),
-            "--lmin",
-            "10",
-            "--nlb",
-            "5",
             "--cov",
             str(cov),
             "--out",
@@ -85,3 +102,141 @@ def test_compute_cross_spectrum_outputs(tmp_path, monkeypatch):
     summary_payload = json.loads(summary.read_text())
     assert summary_payload["nbins"] == 3
     assert messages and "cross-spectrum" in messages[-1]
+
+
+def test_compute_cross_spectrum_requires_lmin_when_falling_back(tmp_path):
+    module = _load_script_module(
+        "compute_cross_spectrum", Path("scripts/compute_cross_spectrum.py")
+    )
+
+    cl = np.array([1.0, 2.0, 3.0], dtype=float)
+    order = tmp_path / "order.npz"
+    np.savez(order, cl=cl, nside=256, nlb=10)
+
+    theory_path = tmp_path / "theory.npz"
+    ell = np.arange(0, 40, dtype=float)
+    np.savez(
+        theory_path,
+        ell=ell,
+        cl_tt=0.2 * ell,
+        cl_kk=0.1 * ell,
+        cl_tk=0.05 * ell,
+    )
+
+    with pytest.raises(ValueError, match="provide --lmin"):
+        module.main(
+            [
+                "--order-a",
+                str(order),
+                "--order-b",
+                str(order),
+                "--theory",
+                str(theory_path),
+                "--prereg",
+                str(tmp_path / "missing_prereg.yaml"),
+                "--nlb",
+                "10",
+            ]
+        )
+
+
+def test_compute_cross_spectrum_reads_lmin_from_json_metadata(tmp_path):
+    module = _load_script_module(
+        "compute_cross_spectrum", Path("scripts/compute_cross_spectrum.py")
+    )
+
+    cl = np.array([1.0, 2.0, 3.0], dtype=float)
+    order = tmp_path / "order.npz"
+    np.savez(order, cl=cl, nside=256, nlb=5)
+    (order.with_suffix(".json")).write_text(json.dumps({"bins": {"lmin": 0, "nlb": 5}}))
+
+    theory_path = tmp_path / "theory.npz"
+    ell = np.arange(0, 40, dtype=float)
+    np.savez(
+        theory_path,
+        ell=ell,
+        cl_tt=0.2 * ell,
+        cl_kk=0.1 * ell,
+        cl_tk=0.05 * ell,
+    )
+
+    cov = tmp_path / "cov.npy"
+    np.save(cov, np.eye(3, dtype=float))
+
+    out = tmp_path / "cross.npz"
+    summary = tmp_path / "summary.json"
+    module.main(
+        [
+            "--order-a",
+            str(order),
+            "--order-b",
+            str(order),
+            "--theory",
+            str(theory_path),
+            "--prereg",
+            str(tmp_path / "missing_prereg.yaml"),
+            "--cov",
+            str(cov),
+            "--out",
+            str(out),
+            "--summary",
+            str(summary),
+        ]
+    )
+
+    data = np.load(out)
+    np.testing.assert_allclose(data["ell"], np.array([2.0, 7.0, 12.0]))
+
+
+def test_compute_cross_spectrum_recovers_geometry_from_edges(tmp_path):
+    module = _load_script_module(
+        "compute_cross_spectrum", Path("scripts/compute_cross_spectrum.py")
+    )
+
+    cl = np.array([1.0, 2.0, 3.0], dtype=float)
+    order = tmp_path / "order.npz"
+    np.savez(
+        order,
+        cl=cl,
+        nside=256,
+        nlb=5,
+        ell_left_edges=np.array([8, 18, 28], dtype=int),
+        ell_right_edges=np.array([18, 28, 35], dtype=int),
+    )
+
+    theory_path = tmp_path / "theory.npz"
+    ell = np.arange(0, 50, dtype=float)
+    np.savez(
+        theory_path,
+        ell=ell,
+        cl_tt=0.2 * ell,
+        cl_kk=0.1 * ell,
+        cl_tk=0.05 * ell,
+    )
+
+    cov = tmp_path / "cov.npy"
+    np.save(cov, np.eye(3, dtype=float))
+
+    out = tmp_path / "cross.npz"
+    summary = tmp_path / "summary.json"
+    module.main(
+        [
+            "--order-a",
+            str(order),
+            "--order-b",
+            str(order),
+            "--theory",
+            str(theory_path),
+            "--prereg",
+            str(tmp_path / "missing_prereg.yaml"),
+            "--cov",
+            str(cov),
+            "--out",
+            str(out),
+            "--summary",
+            str(summary),
+        ]
+    )
+
+    data = np.load(out)
+    np.testing.assert_allclose(data["ell"], np.array([12.5, 22.5, 31.0]))

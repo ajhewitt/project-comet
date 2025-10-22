@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 from pathlib import Path
 
 import healpy as hp
@@ -68,6 +69,8 @@ def main():
 
     bins = None
     bins_meta = None
+    bins_ell_groups: list[np.ndarray] = []
+    ell_effective: np.ndarray | None = None
     windows_cfg: WindowConfig | None = None
     if not args.disable_prereg:
         try:
@@ -83,6 +86,36 @@ def main():
             lmax=args.lmax,
             lmin=args.lmin,
             nlb=args.nlb,
+        )
+
+    if hasattr(bins, "get_effective_ells"):
+        try:
+            ell_effective = np.asarray(bins.get_effective_ells(), dtype=float)
+        except Exception:
+            ell_effective = None
+
+    if hasattr(bins, "get_ell_list"):
+        try:
+            bins_ell_groups = [np.asarray(group, dtype=int) for group in bins.get_ell_list()]
+        except Exception:
+            bins_ell_groups = []
+
+    def _infer_bin_limits() -> tuple[int | None, int | None]:
+        lmin_val = getattr(bins, "lmin", None)
+        lmax_val = getattr(bins, "lmax", None)
+        for group in bins_ell_groups:
+            arr = np.asarray(group, dtype=int)
+            if arr.size:
+                lmin_val = int(arr[0])
+                break
+        for group in reversed(bins_ell_groups):
+            arr = np.asarray(group, dtype=int)
+            if arr.size:
+                lmax_val = int(arr[-1])
+                break
+        return (
+            None if lmin_val is None else int(lmin_val),
+            None if lmax_val is None else int(lmax_val),
         )
 
     if not args.disable_prereg:
@@ -113,7 +146,75 @@ def main():
         field_names=("cmb", "phi"),
     )
 
-    np.savez(Path(args.out), cl=cl, nside=nside, nlb=args.nlb)
+    lmin_used, lmax_used = _infer_bin_limits()
+    if lmin_used is None:
+        if args.lmin is not None:
+            lmin_used = int(args.lmin)
+        elif isinstance(bins_meta, Mapping) and "lmin" in bins_meta:
+            try:
+                lmin_used = int(bins_meta["lmin"])
+            except Exception:
+                lmin_used = None
+        if lmin_used is None:
+            # NaMaster's linear bin helper defaults to starting at ℓ=0 when no
+            # explicit lower bound is supplied. Persist that implicit origin so
+            # downstream stages can always reconstruct the band edges when
+            # preregistered metadata is unavailable.
+            lmin_used = 0
+    bin_left_edges: np.ndarray | None = None
+    bin_right_edges: np.ndarray | None = None
+    if bins_ell_groups and len(bins_ell_groups) == cl.size:
+        bin_left_edges = np.full(cl.size, -1, dtype=int)
+        bin_right_edges = np.full(cl.size, -1, dtype=int)
+        for idx, group in enumerate(bins_ell_groups):
+            if group.size:
+                bin_left_edges[idx] = int(group[0])
+                bin_right_edges[idx] = int(group[-1]) + 1
+
+    nlb_value = int(args.nlb)
+    if isinstance(bins_meta, Mapping) and "nlb" in bins_meta:
+        try:
+            nlb_value = int(bins_meta["nlb"])
+        except Exception:
+            nlb_value = int(args.nlb)
+
+    payload: dict[str, object] = {"cl": cl, "nside": nside, "nlb": np.array(nlb_value, dtype=int)}
+    if lmin_used is not None:
+        payload["lmin"] = np.array(lmin_used, dtype=int)
+    if lmax_used is not None:
+        payload["lmax"] = np.array(lmax_used, dtype=int)
+    if ell_effective is not None and ell_effective.size == cl.size:
+        payload["ell_effective"] = ell_effective.astype(float)
+    if bin_left_edges is not None and bin_right_edges is not None:
+        payload["ell_left_edges"] = bin_left_edges
+        payload["ell_right_edges"] = bin_right_edges
+    np.savez(Path(args.out), **payload)
+
+    bins_summary: dict[str, object] = {}
+    if isinstance(bins_meta, Mapping):
+        bins_summary.update({k: v for k, v in bins_meta.items()})
+    if lmin_used is not None and "lmin" not in bins_summary:
+        bins_summary["lmin"] = int(lmin_used)
+    if lmax_used is not None and "lmax" not in bins_summary:
+        bins_summary["lmax"] = int(lmax_used)
+    if "nlb" not in bins_summary:
+        bins_summary["nlb"] = int(args.nlb)
+    bins_summary["nbins"] = int(cl.size)
+    if (
+        ell_effective is not None
+        and ell_effective.size == cl.size
+        and "ell_effective" not in bins_summary
+    ):
+        bins_summary["ell_effective"] = ell_effective.astype(float).tolist()
+    if (
+        bin_left_edges is not None
+        and bin_right_edges is not None
+        and "ell_left_edges" not in bins_summary
+        and "ell_right_edges" not in bins_summary
+    ):
+        bins_summary["ell_left_edges"] = bin_left_edges.astype(int).tolist()
+        bins_summary["ell_right_edges"] = bin_right_edges.astype(int).tolist()
+
     save_json(
         {
             "order": "A_to_B",
@@ -122,7 +223,7 @@ def main():
             "mask_threshold_sigma": args.threshold_sigma,
             "mask_apod_arcmin": args.apod_arcmin,
             "bins_source": "prereg" if bins_meta is not None else "cli",
-            "bins": bins_meta,
+            "bins": bins_summary,
             "windows": windows_cfg.to_metadata() if windows_cfg is not None else None,
         },
         Path(args.out).with_suffix(".json"),
