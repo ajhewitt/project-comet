@@ -114,7 +114,14 @@ def test_compute_cross_spectrum_requires_lmin_when_falling_back(tmp_path):
     np.savez(order, cl=cl, nside=256, nlb=10)
 
     theory_path = tmp_path / "theory.npz"
-    np.savez(theory_path, ell=np.arange(0, 40, dtype=float), cl_tk=0.05 * np.arange(0, 40))
+    ell = np.arange(0, 40, dtype=float)
+    np.savez(
+        theory_path,
+        ell=ell,
+        cl_tt=0.2 * ell,
+        cl_kk=0.1 * ell,
+        cl_tk=0.05 * ell,
+    )
 
     with pytest.raises(ValueError, match="provide --lmin"):
         module.main(
@@ -144,7 +151,14 @@ def test_compute_cross_spectrum_reads_lmin_from_json_metadata(tmp_path):
     (order.with_suffix(".json")).write_text(json.dumps({"bins": {"lmin": 0, "nlb": 5}}))
 
     theory_path = tmp_path / "theory.npz"
-    np.savez(theory_path, ell=np.arange(0, 40, dtype=float), cl_tk=0.05 * np.arange(0, 40))
+    ell = np.arange(0, 40, dtype=float)
+    np.savez(
+        theory_path,
+        ell=ell,
+        cl_tt=0.2 * ell,
+        cl_kk=0.1 * ell,
+        cl_tk=0.05 * ell,
+    )
 
     out = tmp_path / "cross.npz"
     summary = tmp_path / "summary.json"
@@ -186,7 +200,14 @@ def test_compute_cross_spectrum_recovers_geometry_from_edges(tmp_path):
     )
 
     theory_path = tmp_path / "theory.npz"
-    np.savez(theory_path, ell=np.arange(0, 50, dtype=float), cl_tk=0.05 * np.arange(0, 50))
+    ell = np.arange(0, 50, dtype=float)
+    np.savez(
+        theory_path,
+        ell=ell,
+        cl_tt=0.2 * ell,
+        cl_kk=0.1 * ell,
+        cl_tk=0.05 * ell,
+    )
 
     out = tmp_path / "cross.npz"
     summary = tmp_path / "summary.json"
